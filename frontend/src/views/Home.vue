@@ -31,6 +31,10 @@
         @click="openViewer(index)"
       >
         <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
+        <!-- 评分徽章 -->
+        <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
+          {{ photo.scores.overall.toFixed(1) }}
+        </div>
         <div class="photo-info">
           <p class="photo-desc">{{ photo.description || photo.filename }}</p>
           <div class="photo-tags">
@@ -86,13 +90,25 @@ const viewerImages = computed(() => {
     description: photo.description,
     datetime: photo.datetime,
     location: photo.location,
-    camera: photo.camera
+    camera: photo.camera,
+    scores: photo.scores
   }))
 })
 
 const openViewer = (index) => {
   viewerIndex.value = index
   viewerVisible.value = true
+}
+
+const getScoreStyle = (score) => {
+  let color = '#ef4444'
+  if (score >= 4.5) color = '#10b981'
+  else if (score >= 4.0) color = '#6366f1'
+  else if (score >= 3.0) color = '#f59e0b'
+  
+  return {
+    background: color
+  }
 }
 
 const loadPhotos = async () => {
@@ -141,5 +157,23 @@ onMounted(() => {
 .empty-state :deep(.el-empty__image) {
   filter: grayscale(100%);
   opacity: 0.5;
+}
+
+/* 评分徽章 */
+.score-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2;
 }
 </style>

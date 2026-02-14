@@ -72,7 +72,8 @@ async def process_import(task_id: str, folder_path: str):
                     "filename": os.path.basename(filepath),
                     **exif_data,
                     "description": vision_result.get("description", ""),
-                    "tags": vision_result.get("tags", [])
+                    "tags": vision_result.get("tags", []),
+                    "scores": vision_result.get("scores")
                 }
                 
                 # 4. 构建文档文本用于向量化
@@ -203,7 +204,8 @@ async def process_uploaded_files(task_id: str, file_paths: List[str], temp_dir: 
                     "filename": os.path.basename(filepath),
                     **exif_data,
                     "description": vision_result.get("description", ""),
-                    "tags": vision_result.get("tags", [])
+                    "tags": vision_result.get("tags", []),
+                    "scores": vision_result.get("scores")
                 }
                 
                 # 5. 构建文档文本用于向量化

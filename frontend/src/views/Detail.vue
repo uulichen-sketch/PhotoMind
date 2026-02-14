@@ -32,6 +32,13 @@
       <!-- 信息侧边栏 -->
       <div class="info-section">
         <el-card class="info-card">
+          <!-- AI 评分 -->
+          <div v-if="photo.scores" class="info-block">
+            <PhotoScore :scores="photo.scores" />
+          </div>
+
+          <el-divider v-if="photo.scores" />
+
           <!-- AI 描述 -->
           <div class="info-block">
             <div class="block-header">
@@ -155,6 +162,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ImageViewer from '../components/ImageViewer.vue'
+import PhotoScore from '../components/PhotoScore.vue'
 
 const route = useRoute()
 const router = useRouter()

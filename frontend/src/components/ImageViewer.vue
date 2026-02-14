@@ -79,20 +79,38 @@
 
         <!-- 底部信息 -->
         <div v-if="currentImage" class="viewer-footer">
-          <div class="image-info">
-            <span v-if="currentImage.datetime" class="info-item">
-              📅 {{ formatDate(currentImage.datetime) }}
-            </span>
-            <span v-if="currentImage.location" class="info-item">
-              📍 {{ currentImage.location }}
-            </span>
-            <span v-if="currentImage.camera" class="info-item">
-              📷 {{ currentImage.camera }}
-            </span>
+          <div class="footer-content">
+            <div class="footer-left">
+              <div class="image-info">
+                <span v-if="currentImage.datetime" class="info-item">
+                  📅 {{ formatDate(currentImage.datetime) }}
+                </span>
+                <span v-if="currentImage.location" class="info-item">
+                  📍 {{ currentImage.location }}
+                </span>
+                <span v-if="currentImage.camera" class="info-item">
+                  📷 {{ currentImage.camera }}
+                </span>
+              </div>
+              <p v-if="currentImage.description" class="image-desc">
+                {{ currentImage.description }}
+              </p>
+            </div>
+            <div v-if="currentImage.scores" class="footer-right">
+              <div class="mini-score">
+                <span class="score-badge" :style="getScoreStyle(currentImage.scores.overall)">
+                  {{ currentImage.scores.overall.toFixed(1) }}
+                </span>
+                <button class="score-detail-btn" @click="showScoreDetail = !showScoreDetail">
+                  {{ showScoreDetail ? '隐藏评分' : '查看评分' }}
+                </button>
+              </div>
+            </div>
           </div>
-          <p v-if="currentImage.description" class="image-desc">
-            {{ currentImage.description }}
-          </p>
+          <!-- 详细评分面板 -->
+          <div v-if="showScoreDetail && currentImage.scores" class="score-detail-panel">
+            <PhotoScore :scores="currentImage.scores" />
+          </div>
         </div>
       </div>
     </transition>
@@ -101,6 +119,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import PhotoScore from './PhotoScore.vue'
 
 const props = defineProps({
   visible: {
@@ -128,6 +147,9 @@ const translateX = ref(0)
 const translateY = ref(0)
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
+
+// 评分详情显示状态
+const showScoreDetail = ref(false)
 
 // 计算当前图片
 const currentImage = computed(() => {
@@ -214,6 +236,7 @@ const prev = () => {
   if (currentIndex.value > 0) {
     currentIndex.value--
     reset()
+    showScoreDetail.value = false
     emit('change', currentIndex.value)
   }
 }
@@ -222,6 +245,7 @@ const next = () => {
   if (currentIndex.value < props.images.length - 1) {
     currentIndex.value++
     reset()
+    showScoreDetail.value = false
     emit('change', currentIndex.value)
   }
 }
@@ -230,6 +254,7 @@ const goTo = (index) => {
   if (index !== currentIndex.value) {
     currentIndex.value = index
     reset()
+    showScoreDetail.value = false
     emit('change', currentIndex.value)
   }
 }
@@ -307,6 +332,18 @@ const formatDate = (dateStr) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getScoreStyle = (score) => {
+  let color = '#ef4444'
+  if (score >= 4.5) color = '#10b981'
+  else if (score >= 4.0) color = '#6366f1'
+  else if (score >= 3.0) color = '#f59e0b'
+  
+  return {
+    background: color,
+    color: 'white'
+  }
 }
 </script>
 
@@ -513,6 +550,21 @@ const formatDate = (dateStr) => {
   backdrop-filter: blur(10px);
 }
 
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.footer-left {
+  flex: 1;
+}
+
+.footer-right {
+  flex-shrink: 0;
+}
+
 .image-info {
   display: flex;
   gap: 20px;
@@ -532,6 +584,60 @@ const formatDate = (dateStr) => {
   text-align: center;
   margin: 0;
   line-height: 1.6;
+}
+
+/* 迷你评分 */
+.mini-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.score-detail-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.score-detail-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 评分详情面板 */
+.score-detail-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  animation: slide-up 0.3s ease;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 过渡动画 */

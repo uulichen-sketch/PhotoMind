@@ -13,6 +13,16 @@ class ImportStatus(str, Enum):
     FAILED = "failed"
 
 
+class PhotoScores(BaseModel):
+    """照片评分"""
+    composition: float = Field(0.0, description="构图评分 (1-5)", ge=0, le=5)
+    color: float = Field(0.0, description="色彩评分 (1-5)", ge=0, le=5)
+    lighting: float = Field(0.0, description="光线评分 (1-5)", ge=0, le=5)
+    sharpness: float = Field(0.0, description="清晰度评分 (1-5)", ge=0, le=5)
+    overall: float = Field(0.0, description="整体评分 (1-5)", ge=0, le=5)
+    reason: Optional[str] = Field(None, description="评分理由")
+
+
 class PhotoMetadata(BaseModel):
     """照片元数据"""
     id: str = Field(..., description="照片唯一 ID")
@@ -32,6 +42,9 @@ class PhotoMetadata(BaseModel):
     # AI 生成信息
     description: Optional[str] = Field(None, description="AI 生成的照片描述")
     tags: List[str] = Field(default_factory=list, description="分类标签")
+    
+    # AI 评分
+    scores: Optional[PhotoScores] = Field(None, description="AI 评分")
     
     # 文件信息
     file_size: Optional[int] = Field(None, description="文件大小（字节）")

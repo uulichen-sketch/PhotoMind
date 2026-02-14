@@ -35,7 +35,7 @@ class VisionService:
             with open(image_path, 'rb') as f:
                 image_data = base64.b64encode(f.read()).decode('utf-8')
             
-            # 构建请求 - 优化版提示词，激发更丰富的描述
+            # 构建请求 - 优化版提示词，激发更丰富的描述和评分
             prompt = """你是一位专业的摄影分析师，请详细分析这张照片，提供以下信息（用中文回复）：
 
 1. **照片描述**：用2-3句话描述照片的内容、场景、主体和氛围。包括：
@@ -56,12 +56,28 @@ class VisionService:
 
 4. **情感氛围**：这张照片传达的情感或氛围（如：温馨、孤独、活力、宁静、浪漫、怀旧等）
 
+5. **专业评分**（1-5星，保留1位小数）：作为专业摄影师，请从以下维度评分：
+   - 构图评分：画面构图是否平衡、有层次、引导线是否清晰
+   - 色彩评分：色彩搭配、饱和度、色调协调性
+   - 光线评分：光线运用、曝光准确性、光影层次
+   - 清晰度评分：对焦准确性、画面锐利度、细节保留
+   - 整体评分：照片整体美感、创意性、视觉冲击力
+   - 评分理由：简要说明评分依据
+
 请严格按照以下 JSON 格式回复，确保所有字段都有值：
 {
     "description": "详细的照片描述，2-3句话",
     "tags": ["标签1", "标签2", "标签3", "标签4", "标签5"],
     "subjects": "主要人物或物体的简要描述",
-    "mood": "照片传达的情感氛围"
+    "mood": "照片传达的情感氛围",
+    "scores": {
+        "composition": 4.5,
+        "color": 4.0,
+        "lighting": 4.5,
+        "sharpness": 4.0,
+        "overall": 4.2,
+        "reason": "评分理由说明"
+    }
 }"""
 
             response = await self.client.post(
@@ -129,11 +145,23 @@ class VisionService:
                 if mood and mood not in description:
                     description = f"{description} 整体氛围{mood}。"
                 
+                # 提取评分数据
+                scores_data = parsed.get("scores", {})
+                scores = {
+                    "composition": float(scores_data.get("composition", 0)),
+                    "color": float(scores_data.get("color", 0)),
+                    "lighting": float(scores_data.get("lighting", 0)),
+                    "sharpness": float(scores_data.get("sharpness", 0)),
+                    "overall": float(scores_data.get("overall", 0)),
+                    "reason": scores_data.get("reason", "")
+                }
+                
                 return {
                     "description": description,
                     "tags": tags,
                     "subjects": subjects,
-                    "mood": mood
+                    "mood": mood,
+                    "scores": scores
                 }
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse GLM-4V response: {content}")
