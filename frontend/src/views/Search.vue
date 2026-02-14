@@ -98,10 +98,10 @@
       
       <div class="photo-grid">
         <div 
-          v-for="photo in results" 
+          v-for="(photo, index) in results" 
           :key="photo.id"
           class="photo-card"
-          @click="goToDetail(photo.id)"
+          @click="openViewer(index)"
         >
           <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
           <div class="photo-info">
@@ -111,6 +111,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片浏览器 -->
+    <ImageViewer
+      v-model:visible="viewerVisible"
+      :images="viewerImages"
+      :initial-index="viewerIndex"
+      @change="(idx) => viewerIndex = idx"
+    />
 
     <!-- 无结果 -->
     <el-empty 
@@ -156,15 +164,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import ImageViewer from '../components/ImageViewer.vue'
 
 const router = useRouter()
 const API_BASE = 'http://localhost:8000'
 
 const searchMode = ref('text')
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
 const searchQuery = ref('')
 const searching = ref(false)
 const searched = ref(false)
@@ -179,6 +190,28 @@ let audioChunks = []
 
 const getPhotoUrl = (photo) => {
   return `${API_BASE}/api/photo/${photo.id}/thumbnail`
+}
+
+const getPhotoFileUrl = (photo) => {
+  return `${API_BASE}/api/photo/${photo.id}/file`
+}
+
+// 图片浏览器数据
+const viewerImages = computed(() => {
+  return results.value.map(photo => ({
+    src: getPhotoFileUrl(photo),
+    thumbnail: getPhotoUrl(photo),
+    filename: photo.filename,
+    description: photo.description,
+    datetime: photo.datetime,
+    location: photo.location,
+    camera: photo.camera
+  }))
+})
+
+const openViewer = (index) => {
+  viewerIndex.value = index
+  viewerVisible.value = true
 }
 
 const formatDate = (dateStr) => {

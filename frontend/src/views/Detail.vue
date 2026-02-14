@@ -8,8 +8,12 @@
     <div v-if="photo" class="detail-content">
       <!-- 照片展示区 -->
       <div class="photo-section">
-        <div class="photo-container">
+        <div class="photo-container" @click="viewerVisible = true">
           <img :src="photoUrl" class="main-photo" :alt="photo.description" />
+          <div class="photo-overlay">
+            <span class="zoom-icon">🔍</span>
+            <span>点击查看大图</span>
+          </div>
         </div>
         
         <!-- 照片操作 -->
@@ -135,6 +139,13 @@
     </div>
 
     <el-empty v-else description="照片不存在" :image-size="200" />
+
+    <!-- 图片浏览器 -->
+    <ImageViewer
+      v-model:visible="viewerVisible"
+      :images="viewerImages"
+      :initial-index="0"
+    />
   </div>
 </template>
 
@@ -143,6 +154,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ImageViewer from '../components/ImageViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -150,9 +162,24 @@ const API_BASE = 'http://localhost:8000'
 
 const photo = ref(null)
 const loading = ref(true)
+const viewerVisible = ref(false)
 
 const photoId = computed(() => route.params.id)
 const photoUrl = computed(() => `${API_BASE}/api/photo/${photoId.value}/file`)
+
+// 图片浏览器数据
+const viewerImages = computed(() => {
+  if (!photo.value) return []
+  return [{
+    src: photoUrl.value,
+    thumbnail: photoUrl.value,
+    filename: photo.value.filename,
+    description: photo.value.description,
+    datetime: photo.value.datetime,
+    location: photo.value.location,
+    camera: photo.value.camera
+  }]
+})
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
@@ -253,6 +280,33 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 500px;
+  position: relative;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.photo-container:hover .photo-overlay {
+  opacity: 1;
+}
+
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: var(--radius-lg);
+}
+
+.zoom-icon {
+  font-size: 48px;
 }
 
 .main-photo {

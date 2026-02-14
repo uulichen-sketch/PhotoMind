@@ -25,10 +25,10 @@
 
     <div v-else class="photo-grid">
       <div 
-        v-for="photo in photos" 
+        v-for="(photo, index) in photos" 
         :key="photo.id" 
         class="photo-card"
-        @click="goToDetail(photo.id)"
+        @click="openViewer(index)"
       >
         <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
         <div class="photo-info">
@@ -41,16 +41,27 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片浏览器 -->
+    <ImageViewer
+      v-model:visible="viewerVisible"
+      :images="viewerImages"
+      :initial-index="viewerIndex"
+      @change="(idx) => viewerIndex = idx"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import ImageViewer from '../components/ImageViewer.vue'
 
 const router = useRouter()
 const photos = ref([])
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
 
 const API_BASE = 'http://localhost:8000'
 
@@ -58,8 +69,30 @@ const getPhotoUrl = (photo) => {
   return `${API_BASE}/api/photo/${photo.id}/thumbnail`
 }
 
+const getPhotoFileUrl = (photo) => {
+  return `${API_BASE}/api/photo/${photo.id}/file`
+}
+
 const goToDetail = (id) => {
   router.push(`/photo/${id}`)
+}
+
+// 图片浏览器数据
+const viewerImages = computed(() => {
+  return photos.value.map(photo => ({
+    src: getPhotoFileUrl(photo),
+    thumbnail: getPhotoUrl(photo),
+    filename: photo.filename,
+    description: photo.description,
+    datetime: photo.datetime,
+    location: photo.location,
+    camera: photo.camera
+  }))
+})
+
+const openViewer = (index) => {
+  viewerIndex.value = index
+  viewerVisible.value = true
 }
 
 const loadPhotos = async () => {
