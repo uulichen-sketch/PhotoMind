@@ -121,7 +121,7 @@ const loadPhotos = async () => {
 }
 
 onMounted(() => {
-  // loadPhotos() // 暂时注释，等后端接口完善
+  loadPhotos()
 })
 </script>
 

@@ -194,6 +194,64 @@ class VectorService:
             return 0
         return self._collection.count()
     
+    def list_photos(self, limit: int = 1000, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        获取所有照片列表
+        
+        Args:
+            limit: 返回数量限制
+            offset: 偏移量
+            
+        Returns:
+            照片元数据列表
+        """
+        if self._collection is None:
+            logger.error("Collection not initialized")
+            return []
+        
+        try:
+            # 获取所有文档
+            results = self._collection.get()
+            
+            photos = []
+            if results and results.get('ids'):
+                for i, photo_id in enumerate(results['ids']):
+                    metadata = results['metadatas'][i] if results.get('metadatas') else {}
+                    
+                    # 跳过人物类型
+                    if metadata.get('type') == 'person':
+                        continue
+                    
+                    # 还原 metadata
+                    parsed_metadata = {}
+                    for key, value in metadata.items():
+                        try:
+                            if key == 'tags':
+                                parsed_metadata[key] = json.loads(value)
+                            elif key == 'scores':
+                                parsed_metadata[key] = json.loads(value)
+                            else:
+                                parsed_metadata[key] = value
+                        except:
+                            parsed_metadata[key] = value
+                    
+                    parsed_metadata['id'] = photo_id
+                    photos.append(parsed_metadata)
+                
+                # 按时间倒序排列
+                photos.sort(key=lambda x: x.get('datetime', ''), reverse=True)
+            
+            # 应用分页
+            total = len(photos)
+            photos = photos[offset:offset + limit]
+            
+            logger.info(f"Listed {len(photos)} photos (total: {total})")
+            return photos
+            
+        except Exception as e:
+            logger.error(f"Failed to list photos: {e}")
+            return []
+    
     def clear_all(self):
         """清空所有照片"""
         if self._client is None:
