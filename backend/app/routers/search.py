@@ -10,6 +10,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
+@router.get("/health")
+async def search_health():
+    """搜索服务健康检查"""
+    asr_status = await asr_service.health_check()
+    return {
+        "status": "healthy",
+        "asr": asr_status
+    }
+
+
 @router.post("/text", response_model=SearchResult)
 async def text_search(request: SearchRequest):
     """
@@ -64,12 +74,20 @@ async def voice_search(request: VoiceSearchRequest):
     Returns:
         识别的文字和匹配的照片列表
     """
+    # 检查 ASR 服务是否可用
+    if not asr_service.is_available:
+        logger.warning(f"Voice search requested but ASR not available: {asr_service.status}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"语音识别服务暂不可用。{asr_service.status.get('error', '请检查模型配置。')}"
+        )
+    
     try:
         # 语音转文字
         text = asr_service.transcribe(request.audio)
         
         if not text:
-            return SearchResult(text="", photos=[])
+            return SearchResult(text="", photos=[], message="未能识别语音，请重试")
         
         logger.info(f"Voice recognized: {text}")
         

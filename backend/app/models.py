@@ -75,6 +75,7 @@ class SearchResult(BaseModel):
     """搜索结果"""
     text: Optional[str] = Field(None, description="语音识别后的文字")
     photos: List[PhotoMetadata] = Field(default_factory=list, description="匹配的照片列表")
+    message: Optional[str] = Field(None, description="额外消息或错误提示")
 
 
 class ImportStartRequest(BaseModel):

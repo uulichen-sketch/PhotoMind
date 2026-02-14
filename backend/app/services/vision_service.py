@@ -35,15 +35,33 @@ class VisionService:
             with open(image_path, 'rb') as f:
                 image_data = base64.b64encode(f.read()).decode('utf-8')
             
-            # 构建请求
-            prompt = """请分析这张照片，提供以下信息（用中文回复）：
-1. 照片描述：用1-2句话描述照片的内容和场景
-2. 分类标签：列出3-5个最相关的标签
+            # 构建请求 - 优化版提示词，激发更丰富的描述
+            prompt = """你是一位专业的摄影分析师，请详细分析这张照片，提供以下信息（用中文回复）：
 
-请严格按照以下 JSON 格式回复：
+1. **照片描述**：用2-3句话描述照片的内容、场景、主体和氛围。包括：
+   - 主要拍摄对象（人物、建筑、风景、动物等）
+   - 场景环境（室内/室外、自然环境、城市街景等）
+   - 光线和氛围（明亮/昏暗、温暖/清冷、宁静/热闹等）
+   - 拍摄角度和构图特点（特写、全景、俯视、仰拍等）
+
+2. **分类标签**：列出5-8个最相关的标签，按重要性排序。标签类型包括：
+   - 场景类型：风景、人像、街拍、建筑、美食、动物、植物等
+   - 地点特征：海边、山顶、城市、公园、室内、古镇等
+   - 时间特征：日出、日落、夜景、白天、清晨、黄昏等
+   - 风格特征：复古、现代、文艺、简约、繁华等
+   - 色彩特征：暖色调、冷色调、黑白、鲜艳、柔和等
+   - 天气季节：晴天、阴天、雨天、雪景、春天、夏天等
+
+3. **主体信息**：简要描述画面中的主要人物或物体（如有）
+
+4. **情感氛围**：这张照片传达的情感或氛围（如：温馨、孤独、活力、宁静、浪漫、怀旧等）
+
+请严格按照以下 JSON 格式回复，确保所有字段都有值：
 {
-    "description": "你的描述",
-    "tags": ["标签1", "标签2", "标签3"]
+    "description": "详细的照片描述，2-3句话",
+    "tags": ["标签1", "标签2", "标签3", "标签4", "标签5"],
+    "subjects": "主要人物或物体的简要描述",
+    "mood": "照片传达的情感氛围"
 }"""
 
             response = await self.client.post(
@@ -93,9 +111,29 @@ class VisionService:
                     json_str = content.strip()
                 
                 parsed = json.loads(json_str)
+                # 合并所有标签，包括场景、情感等
+                tags = parsed.get("tags", [])
+                mood = parsed.get("mood", "")
+                subjects = parsed.get("subjects", "")
+                
+                # 将情感和主体也加入标签，方便搜索
+                if mood and mood not in tags:
+                    tags.append(mood)
+                if subjects and subjects not in tags:
+                    tags.append(subjects)
+                
+                # 构建更丰富的描述
+                description = parsed.get("description", "")
+                if subjects and subjects not in description:
+                    description = f"{subjects}。{description}"
+                if mood and mood not in description:
+                    description = f"{description} 整体氛围{mood}。"
+                
                 return {
-                    "description": parsed.get("description", "未知"),
-                    "tags": parsed.get("tags", [])
+                    "description": description,
+                    "tags": tags,
+                    "subjects": subjects,
+                    "mood": mood
                 }
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse GLM-4V response: {content}")

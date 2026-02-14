@@ -6,6 +6,7 @@ from PIL.ExifTags import TAGS, GPSTAGS
 import exifread
 from datetime import datetime
 import logging
+from app.services.geocoding_service import geocoding_service
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +106,12 @@ class EXIFService:
                     # GPS 信息
                     if "GPSInfo" in exif:
                         gps_info = exif["GPSInfo"]
-                        # 简化处理，后续可以转为地名
                         lat = EXIFService._get_gps_value(gps_info, 2)
                         lon = EXIFService._get_gps_value(gps_info, 4)
                         if lat and lon:
                             result["location"] = f"{lat:.4f}, {lon:.4f}"
+                            result["gps_latitude"] = lat
+                            result["gps_longitude"] = lon
             
             # 使用 exifread 获取更多信息（如镜头）
             try:

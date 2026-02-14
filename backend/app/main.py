@@ -5,6 +5,9 @@ from app.config import settings
 from app.models import HealthResponse
 from app.routers import search, photo, import_router
 from app.services.vector_service import vector_service
+from app.services.asr_service import asr_service, auto_download_asr_models
+from app.services.geocoding_service import geocoding_service
+from app.services.face_service import face_service
 import logging
 
 # 配置日志
@@ -59,11 +62,56 @@ async def health():
     return await root()
 
 
+@app.get("/health/detailed")
+async def health_detailed():
+    """详细健康检查 - 包含所有服务状态"""
+    asr_health = await asr_service.health_check()
+    geo_health = await geocoding_service.health_check()
+    face_health = await face_service.health_check()
+    
+    return {
+        "status": "healthy",
+        "version": settings.app_version,
+        "services": {
+            "chromadb": {
+                "status": "healthy" if vector_service._client else "unhealthy",
+                "photo_count": vector_service.count()
+            },
+            "asr": asr_health,
+            "geocoding": geo_health,
+            "face_recognition": face_health
+        }
+    }
+
+
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     logger.info(f"Photo count: {vector_service.count()}")
+    
+    # 检查各服务状态
+    asr_status = asr_service.status
+    if asr_status['available']:
+        logger.info("✅ ASR service is available")
+    elif asr_status['downloading']:
+        logger.info("⏳ ASR models are being downloaded...")
+    else:
+        logger.warning(f"⚠️ ASR service unavailable: {asr_status['error']}")
+    
+    if geocoding_service.is_enabled:
+        logger.info("✅ Geocoding service is enabled")
+    else:
+        logger.warning("⚠️ Geocoding service disabled (no API key)")
+    
+    face_status = face_service.status
+    if face_status['available']:
+        logger.info("✅ Face recognition service is available")
+    else:
+        logger.warning(f"⚠️ Face recognition unavailable: {face_status['error']}")
+    
+    # 自动下载 ASR 模型（在后台线程中）
+    auto_download_asr_models()
 
 
 @app.on_event("shutdown")

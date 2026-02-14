@@ -21,7 +21,10 @@
 
 - **完全本地化** - 所有数据本地存储，保护隐私
 - **老年友好** - 大字体、大按钮、高对比度界面
-- **智能识别** - GLM-4V 自动生成照片描述和标签
+- **智能识别** - GLM-4V 自动生成丰富的照片描述、标签、情感和主体信息
+- **GPS 转地址** - 自动将 GPS 坐标转为中文地址（山东省青岛市金沙滩）
+- **语音搜索** - 本地 ASR 识别，无需联网
+- **人脸识别** - 自动识别人物并归类（可选功能）
 - **语义搜索** - 向量检索，支持自然语言搜索
 - **一键部署** - Docker Compose 一键启动
 
@@ -36,7 +39,10 @@ cd photomind
 
 # 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env 填入 GLM-4V API Key
+# 编辑 .env 填入：
+# - GLM_API_KEY（必填）
+# - AMAP_API_KEY（可选，用于 GPS 转地址）
+# - ASR_MODEL_DIR（可选，语音识别模型路径）
 
 # 3. 一键启动
 docker-compose up -d
@@ -95,10 +101,12 @@ npm run build
 - 输入关键词：`海边`、`日落`、`2024年夏天`
 - 或自然语言：`去年在海边拍的照片`
 
-#### 语音搜索（开发中）
+#### 语音搜索
 - 点击麦克风按钮
-- 说出搜索内容
+- 说出搜索内容（如"去年在海边拍的照片"）
 - 系统自动识别并搜索
+
+> **注意**：首次使用语音搜索时，系统会自动下载 ASR 模型（约 50MB），请耐心等待。
 
 ### 3. 查看详情
 
@@ -173,6 +181,13 @@ photomind/
 # GLM-4V API（必填）
 GLM_API_KEY=your-api-key-here
 
+# 高德地图 API（可选，用于 GPS 坐标转地址）
+AMAP_API_KEY=your-amap-api-key
+
+# ASR 模型配置（可选）
+ASR_MODEL_DIR=./models/asr          # 模型保存路径
+ASR_MODEL_URL=                      # 自定义模型下载地址
+
 # ChromaDB 配置
 CHROMA_PERSIST_DIR=./data/chroma
 
@@ -196,11 +211,13 @@ FRONTEND_PORT=3000
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
-| `/health` | GET | 健康检查 |
+| `/health` | GET | 基础健康检查 |
+| `/health/detailed` | GET | 详细健康检查（包含各服务状态） |
 | `/api/import/start` | POST | 开始导入照片 |
 | `/api/import/status/{task_id}` | GET | 查询导入状态 |
 | `/api/search/text` | POST | 文字搜索 |
 | `/api/search/voice` | POST | 语音搜索 |
+| `/api/search/health` | GET | 搜索服务健康检查 |
 | `/api/photo/{photo_id}` | GET | 获取照片详情 |
 
 ## 🎨 老年友好设计
@@ -231,13 +248,13 @@ FRONTEND_PORT=3000
 
 - [x] 基础架构搭建
 - [x] EXIF 信息提取
-- [x] GLM-4V 图像识别
+- [x] GLM-4V 图像识别（丰富的描述、标签、情感、主体）
 - [x] ChromaDB 向量存储
 - [x] 批量导入流程
 - [x] 文字搜索功能
-- [ ] 语音搜索（sherpa-onnx 集成）
-- [ ] GPS 坐标转中文地址
-- [ ] 人脸识别 & 人物标签
+- [x] 语音搜索（sherpa-onnx 集成）
+- [x] GPS 坐标转中文地址（高德地图）
+- [x] 人脸识别 & 人物标签（可选功能）
 - [ ] 照片编辑功能
 - [ ] 移动端适配
 

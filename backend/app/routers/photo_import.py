@@ -8,6 +8,7 @@ from app.models import ImportStartRequest, ImportStatusResponse, ImportStatus
 from app.services.exif_service import EXIFService
 from app.services.vision_service import vision_service
 from app.services.vector_service import vector_service
+from app.services.geocoding_service import geocoding_service
 from app.config import settings
 import logging
 
@@ -50,7 +51,16 @@ async def process_import(task_id: str, folder_path: str):
                 # 1. 提取 EXIF
                 exif_data = EXIFService.extract(filepath)
                 
-                # 2. 调用 GLM-4V 识别
+                # 2. GPS 坐标转中文地址
+                if exif_data.get("gps_latitude") and exif_data.get("gps_longitude"):
+                    address = await geocoding_service.reverse_geocode(
+                        exif_data["gps_latitude"],
+                        exif_data["gps_longitude"]
+                    )
+                    if address:
+                        exif_data["location"] = address
+                
+                # 3. 调用 GLM-4V 识别
                 vision_result = await vision_service.analyze_photo(filepath)
                 
                 # 3. 组装元数据

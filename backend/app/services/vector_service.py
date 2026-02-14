@@ -208,6 +208,127 @@ class VectorService:
             logger.info("Cleared all photos")
         except Exception as e:
             logger.error(f"Failed to clear collection: {e}")
+    
+    # ========== 人物管理方法 ==========
+    
+    def add_person(
+        self, 
+        person_id: str, 
+        metadata: Dict[str, Any], 
+        document: str,
+        face_encoding: List[float]
+    ):
+        """
+        添加人物到向量库
+        
+        Args:
+            person_id: 人物唯一 ID
+            metadata: 人物元数据
+            document: 用于向量化的文档文本
+            face_encoding: 人脸特征向量（128维）
+        """
+        if self._collection is None:
+            logger.error("Collection not initialized")
+            return False
+        
+        try:
+            # 将 metadata 转为可存储的格式
+            metadata_stored = {"type": "person"}  # 标记为人物类型
+            for key, value in metadata.items():
+                if value is not None:
+                    if isinstance(value, list):
+                        metadata_stored[key] = json.dumps(value, ensure_ascii=False)
+                    else:
+                        metadata_stored[key] = str(value)
+            
+            # 将人脸特征向量作为 embedding 直接存储
+            self._collection.add(
+                ids=[person_id],
+                documents=[document],
+                metadatas=[metadata_stored],
+                embeddings=[face_encoding]  # 直接使用人脸特征向量
+            )
+            
+            logger.info(f"Added person {person_id} to collection")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add person {person_id}: {e}")
+            return False
+    
+    def get_person(self, person_id: str) -> Optional[Dict[str, Any]]:
+        """获取人物信息"""
+        return self.get_photo(person_id)  # 复用 get_photo 方法
+    
+    def list_persons(self) -> List[Dict[str, Any]]:
+        """列出所有人物"""
+        if self._collection is None:
+            return []
+        
+        try:
+            # 获取所有文档，然后过滤出人物
+            results = self._collection.get()
+            
+            persons = []
+            if results and results.get('ids'):
+                for i, person_id in enumerate(results['ids']):
+                    metadata = results['metadatas'][i] if results.get('metadatas') else {}
+                    
+                    # 只返回类型为 person 的
+                    if metadata.get('type') == 'person':
+                        # 还原 metadata
+                        parsed_metadata = {}
+                        for key, value in metadata.items():
+                            try:
+                                if key in ['tags', 'face_encoding']:
+                                    parsed_metadata[key] = json.loads(value)
+                                else:
+                                    parsed_metadata[key] = value
+                            except:
+                                parsed_metadata[key] = value
+                        
+                        parsed_metadata['id'] = person_id
+                        persons.append(parsed_metadata)
+            
+            return persons
+            
+        except Exception as e:
+            logger.error(f"Failed to list persons: {e}")
+            return []
+    
+    def get_all_face_encodings(self) -> List[Dict[str, Any]]:
+        """
+        获取所有人物的人脸特征向量
+        
+        Returns:
+            人物列表，每项包含 person_id 和 encoding
+        """
+        if self._collection is None:
+            return []
+        
+        try:
+            # 获取所有包含 embeddings 的结果
+            results = self._collection.get(include=["embeddings", "metadatas"])
+            
+            faces = []
+            if results and results.get('ids'):
+                for i, person_id in enumerate(results['ids']):
+                    metadata = results['metadatas'][i] if results.get('metadatas') else {}
+                    embedding = results['embeddings'][i] if results.get('embeddings') else None
+                    
+                    # 只返回类型为 person 且有 embedding 的
+                    if metadata.get('type') == 'person' and embedding is not None:
+                        faces.append({
+                            "person_id": person_id,
+                            "encoding": embedding,
+                            "name": metadata.get('name', 'Unknown')
+                        })
+            
+            return faces
+            
+        except Exception as e:
+            logger.error(f"Failed to get face encodings: {e}")
+            return []
 
 
 # 全局服务实例
