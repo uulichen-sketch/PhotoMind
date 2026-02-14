@@ -90,39 +90,41 @@
     </el-card>
 
     <!-- 搜索结果 -->
-    <div v-if="results.length > 0" class="results-section">
-      <div class="results-header">
-        <h3>找到 {{ results.length }} 张相关照片</h3>
-        <el-button type="primary" text @click="clearResults">清除结果</el-button>
-      </div>
-      
-      <div class="photo-grid">
-        <div 
-          v-for="(photo, index) in results" 
-          :key="photo.id"
-          class="photo-card"
-          @click="openViewer(index)"
-        >
-          <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
-          <!-- 评分徽章 -->
-          <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
-            {{ photo.scores.overall.toFixed(1) }}
-          </div>
-          <div class="photo-info">
-            <p class="photo-desc">{{ photo.description || photo.filename }}</p>
-            <p v-if="photo.datetime" class="photo-date">{{ formatDate(photo.datetime) }}</p>
+    <template v-if="results.length > 0">
+      <div class="results-section">
+        <div class="results-header">
+          <h3>找到 {{ results.length }} 张相关照片</h3>
+          <el-button type="primary" text @click="clearResults">清除结果</el-button>
+        </div>
+        
+        <div class="photo-grid">
+          <div 
+            v-for="(photo, index) in results" 
+            :key="photo.id"
+            class="photo-card"
+            @click="openViewer(index)"
+          >
+            <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
+            <!-- 评分徽章 -->
+            <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
+              {{ photo.scores.overall.toFixed(1) }}
+            </div>
+            <div class="photo-info">
+              <p class="photo-desc">{{ photo.description || photo.filename }}</p>
+              <p v-if="photo.datetime" class="photo-date">{{ formatDate(photo.datetime) }}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 图片浏览器 -->
-    <ImageViewer
-      v-model:visible="viewerVisible"
-      :images="viewerImages"
-      :initial-index="viewerIndex"
-      @change="(idx) => viewerIndex = idx"
-    />
+      <!-- 图片浏览器 -->
+      <ImageViewer
+        v-model:visible="viewerVisible"
+        :images="viewerImages"
+        :initial-index="viewerIndex"
+        @change="(idx) => viewerIndex = idx"
+      />
+    </template>
 
     <!-- 无结果 -->
     <el-empty 
