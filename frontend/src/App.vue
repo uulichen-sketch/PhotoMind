@@ -1,56 +1,176 @@
 <template>
   <div id="app">
-    <el-container>
-      <el-header class="app-header">
-        <h1>📷 PhotoMind 照片管理</h1>
-        <el-menu mode="horizontal" :default-active="activeMenu" router>
-          <el-menu-item index="/">首页</el-menu-item>
-          <el-menu-item index="/import">导入</el-menu-item>
-          <el-menu-item index="/search">搜索</el-menu-item>
-        </el-menu>
-      </el-header>
-      <el-main>
-        <router-view />
-      </el-main>
-    </el-container>
+    <nav class="app-nav">
+      <div class="nav-brand">
+        <div class="logo">
+          <span class="logo-icon">📷</span>
+          <span class="logo-text">PhotoMind</span>
+        </div>
+      </div>
+      <div class="nav-menu">
+        <router-link 
+          v-for="item in menuItems" 
+          :key="item.path"
+          :to="item.path"
+          :class="['nav-item', { active: route.path === item.path }]"
+        >
+          <span class="nav-icon">{{ item.icon }}</span>
+          <span class="nav-label">{{ item.label }}</span>
+        </router-link>
+      </div>
+    </nav>
+    
+    <main class="app-main">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const activeMenu = computed(() => route.path)
+
+const menuItems = [
+  { path: '/', label: '首页', icon: '🏠' },
+  { path: '/import', label: '导入', icon: '📥' },
+  { path: '/search', label: '搜索', icon: '🔍' },
+]
 </script>
 
 <style scoped>
-.app-header {
+#app {
+  min-height: 100vh;
+  display: flex;
+}
+
+.app-nav {
+  width: 240px;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  z-index: 100;
+}
+
+.nav-brand {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.logo {
   display: flex;
   align-items: center;
-  gap: 20px;
-  background: #409EFF;
-  color: white;
-  padding: 0 20px;
+  gap: 12px;
 }
 
-.app-header h1 {
+.logo-icon {
+  font-size: 32px;
+}
+
+.logo-text {
   font-size: 24px;
-  margin: 0;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.app-header .el-menu {
-  background: transparent;
-  border: none;
+.nav-menu {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.app-header .el-menu-item {
-  color: white !important;
-  font-size: 18px;
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
-.app-header .el-menu-item:hover,
-.app-header .el-menu-item.is-active {
-  background: rgba(255, 255, 255, 0.2) !important;
+.nav-item:hover {
+  background: var(--bg-color);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+}
+
+.nav-icon {
+  font-size: 20px;
+}
+
+.nav-label {
+  font-size: 16px;
+}
+
+.app-main {
+  flex: 1;
+  margin-left: 240px;
+  padding: 32px;
+  min-height: 100vh;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .app-nav {
+    width: 100%;
+    height: auto;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+    flex-direction: row;
+    justify-content: space-around;
+  }
+  
+  .nav-brand {
+    display: none;
+  }
+  
+  .nav-menu {
+    flex-direction: row;
+    justify-content: space-around;
+    width: 100%;
+    padding: 8px;
+  }
+  
+  .nav-item {
+    flex-direction: column;
+    padding: 8px 16px;
+    gap: 4px;
+  }
+  
+  .nav-icon {
+    font-size: 24px;
+  }
+  
+  .nav-label {
+    font-size: 12px;
+  }
+  
+  .app-main {
+    margin-left: 0;
+    margin-bottom: 80px;
+    padding: 20px;
+  }
 }
 </style>

@@ -1,16 +1,36 @@
 <template>
   <div class="home">
-    <el-empty v-if="photos.length === 0" description="暂无照片，请先导入">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">我的照片</h1>
+        <p class="page-subtitle">共 {{ photos.length }} 张照片</p>
+      </div>
       <el-button type="primary" size="large" @click="$router.push('/import')">
+        <span class="btn-icon">+</span>
         导入照片
+      </el-button>
+    </div>
+
+    <el-empty v-if="photos.length === 0" class="empty-state" :image-size="200">
+      <template #description>
+        <div class="empty-content">
+          <p class="empty-title">还没有照片</p>
+          <p class="empty-desc">导入您的第一张照片开始管理</p>
+        </div>
+      </template>
+      <el-button type="primary" size="large" @click="$router.push('/import')">
+        📥 导入照片
       </el-button>
     </el-empty>
 
     <div v-else class="photo-grid">
-      <div v-for="photo in photos" :key="photo.id" 
-           class="photo-card"
-           @click="goToDetail(photo.id)">
-        <img :src="getPhotoUrl(photo)" :alt="photo.description" />
+      <div 
+        v-for="photo in photos" 
+        :key="photo.id" 
+        class="photo-card"
+        @click="goToDetail(photo.id)"
+      >
+        <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
         <div class="photo-info">
           <p class="photo-desc">{{ photo.description || photo.filename }}</p>
           <div class="photo-tags">
@@ -35,7 +55,6 @@ const photos = ref([])
 const API_BASE = 'http://localhost:8000'
 
 const getPhotoUrl = (photo) => {
-  // 返回本地照片路径的 URL
   return `${API_BASE}/api/photo/${photo.id}/thumbnail`
 }
 
@@ -58,21 +77,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.photo-info {
-  padding: 8px;
-}
-
-.photo-desc {
-  font-size: 16px;
-  margin: 0 0 8px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.photo-tags {
+.page-header {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.btn-icon {
+  margin-right: 4px;
+  font-size: 20px;
+}
+
+.empty-content {
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.empty-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.empty-state :deep(.el-empty__image) {
+  filter: grayscale(100%);
+  opacity: 0.5;
 }
 </style>
