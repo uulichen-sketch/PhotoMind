@@ -68,24 +68,54 @@
 
       <!-- 语音搜索 -->
       <div v-else class="search-section voice-section">
-        <div class="voice-container">
-          <button
-            :class="['voice-btn', { recording: recording }]"
-            @click="toggleRecording"
-          >
-            <span class="voice-icon">{{ recording ? '⏹️' : '🎤' }}</span>
-          </button>
-          <p class="voice-hint">
-            {{ recording ? '正在录音，点击停止' : '点击开始录音' }}
-          </p>
+        <!-- ASR 加载中 -->
+        <div v-if="asrLoading" class="asr-loading">
+          <el-skeleton :rows="2" animated />
+          <p>正在检查语音识别服务...</p>
         </div>
         
-        <div v-if="voiceText" class="voice-result">
-          <div class="voice-text-box">
-            <span class="voice-label">识别结果:</span>
-            <span class="voice-text">{{ voiceText }}</span>
+        <!-- ASR 模型下载中 -->
+        <div v-else-if="asrStatus.downloading && !asrStatus.available" class="asr-downloading">
+          <div class="download-icon">📥</div>
+          <h4>语音识别模型下载中</h4>
+          <p>首次使用需要下载约 50MB 的模型文件，请耐心等待...</p>
+          <div class="download-progress">
+            <el-progress :percentage="0" :indeterminate="true" />
           </div>
+          <p class="download-hint">下载完成后即可使用语音搜索功能</p>
         </div>
+        
+        <!-- ASR 不可用 -->
+        <div v-else-if="!asrStatus.available" class="asr-unavailable">
+          <div class="unavailable-icon">⚠️</div>
+          <h4>语音搜索暂不可用</h4>
+          <p>{{ asrStatus.error || '语音识别服务未启动，请稍后重试' }}</p>
+          <el-button type="primary" text @click="checkASRStatus">
+            刷新状态
+          </el-button>
+        </div>
+        
+        <!-- ASR 可用 - 正常显示录音按钮 -->
+        <template v-else>
+          <div class="voice-container">
+            <button
+              :class="['voice-btn', { recording: recording }]"
+              @click="toggleRecording"
+            >
+              <span class="voice-icon">{{ recording ? '⏹️' : '🎤' }}</span>
+            </button>
+            <p class="voice-hint">
+              {{ recording ? '正在录音，点击停止' : '点击开始录音' }}
+            </p>
+          </div>
+          
+          <div v-if="voiceText" class="voice-result">
+            <div class="voice-text-box">
+              <span class="voice-label">识别结果:</span>
+              <span class="voice-text">{{ voiceText }}</span>
+            </div>
+          </div>
+        </template>
       </div>
     </el-card>
 
@@ -170,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
@@ -189,7 +219,52 @@ const results = ref([])
 const recording = ref(false)
 const voiceText = ref('')
 
+// ASR 服务状态
+const asrStatus = ref({
+  available: false,
+  downloading: false,
+  models_exist: false,
+  error: null
+})
+const asrLoading = ref(true)
+
 const hotSearches = ['海边', '日落', '家人', '旅行', '生日', '宠物']
+
+// 检查 ASR 服务状态
+const checkASRStatus = async () => {
+  try {
+    asrLoading.value = true
+    const res = await axios.get(`${API_BASE}/health/detailed`)
+    const asr = res.data.services?.asr
+    if (asr) {
+      asrStatus.value = {
+        available: asr.available || false,
+        downloading: asr.downloading || false,
+        models_exist: asr.models_exist || false,
+        error: asr.error || null
+      }
+    }
+  } catch (e) {
+    console.error('Check ASR status failed:', e)
+    asrStatus.value.error = '无法获取 ASR 服务状态'
+  } finally {
+    asrLoading.value = false
+  }
+}
+
+// 页面加载时检查 ASR 状态
+onMounted(() => {
+  checkASRStatus()
+  // 每 10 秒刷新一次状态（如果正在下载）
+  const interval = setInterval(() => {
+    if (asrStatus.value.downloading && !asrStatus.value.available) {
+      checkASRStatus()
+    }
+  }, 10000)
+  
+  // 组件卸载时清理
+  return () => clearInterval(interval)
+})
 
 let mediaRecorder = null
 let audioChunks = []
@@ -506,6 +581,51 @@ const searchByVoice = async (audioBlob) => {
 
 .voice-result {
   margin-top: 24px;
+}
+
+/* ASR 状态提示 */
+.asr-loading,
+.asr-downloading,
+.asr-unavailable {
+  text-align: center;
+  padding: 40px 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.asr-loading p {
+  color: var(--text-secondary);
+  margin-top: 16px;
+}
+
+.asr-downloading .download-icon,
+.asr-unavailable .unavailable-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.asr-downloading h4,
+.asr-unavailable h4 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.asr-downloading p,
+.asr-unavailable p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.asr-downloading .download-progress {
+  margin: 24px 0;
+}
+
+.asr-downloading .download-hint {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 .voice-text-box {
