@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models import HealthResponse
-from app.routers import search, photo, import_router, import_stream
+from app.routers import search, photos, import_router, import_stream
+from app.services.photo_processor import photo_processor
 from app.services.vector_service import vector_service
 from app.services.asr_service import asr_service, auto_download_asr_models
 from app.services.geocoding_service import geocoding_service
@@ -40,7 +41,7 @@ app.add_middleware(
 app.include_router(search.router)
 app.include_router(import_router)
 app.include_router(import_stream.router)
-app.include_router(photo.router)
+app.include_router(photos.router)
 
 
 @app.get("/", response_model=HealthResponse)
@@ -113,12 +114,17 @@ async def startup_event():
     
     # 自动下载 ASR 模型（在后台线程中）
     auto_download_asr_models()
+    
+    # 启动照片 AI 处理器
+    await photo_processor.start()
+    logger.info("✅ Photo processor started")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭事件"""
     logger.info("Shutting down...")
+    await photo_processor.stop()
 
 
 if __name__ == "__main__":

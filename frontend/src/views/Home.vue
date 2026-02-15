@@ -1,9 +1,32 @@
 <template>
   <div class="home">
+    <!-- 后台处理进度条 -->
+    <div v-if="processingStats.pending_total > 0" class="processing-banner">
+      <div class="processing-content">
+        <div class="processing-icon">🤖</div>
+        <div class="processing-info">
+          <h4>AI 正在分析照片</h4>
+          <p>{{ processingStats.completed_total }} / {{ processingStats.total }} 张照片已完成</p>
+        </div>
+        <div class="processing-progress">
+          <el-progress 
+            :percentage="processingPercent" 
+            :stroke-width="8"
+            :show-text="false"
+          />
+        </div>
+      </div>
+    </div>
+
     <div class="page-header">
       <div>
         <h1 class="page-title">我的照片</h1>
-        <p class="page-subtitle">共 {{ photos.length }} 张照片</p>
+        <p class="page-subtitle">
+          共 {{ photos.length }} 张照片
+          <span v-if="processingStats.pending_total > 0" class="processing-hint">
+            ({{ processingStats.pending_total }} 张正在分析)
+          </span>
+        </p>
       </div>
       <el-button type="primary" size="large" @click="$router.push('/import')">
         <span class="btn-icon">+</span>
@@ -57,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import ImageViewer from '../components/ImageViewer.vue'
@@ -67,7 +90,20 @@ const photos = ref([])
 const viewerVisible = ref(false)
 const viewerIndex = ref(0)
 
+// 后台处理统计
+const processingStats = ref({
+  pending_total: 0,
+  completed_total: 0,
+  total: 0
+})
+let statsInterval = null
+
 const API_BASE = 'http://localhost:8000'
+
+const processingPercent = computed(() => {
+  if (processingStats.value.total === 0) return 0
+  return Math.round((processingStats.value.completed_total / processingStats.value.total) * 100)
+})
 
 const getPhotoUrl = (photo) => {
   return `${API_BASE}/api/photos/${photo.id}/thumbnail`
@@ -113,19 +149,93 @@ const getScoreStyle = (score) => {
 
 const loadPhotos = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/photos`)
-    photos.value = res.data.photos || []
+    // 获取所有照片（包括待处理的）
+    const res = await axios.get(`${API_BASE}/api/photos?status=all`)
+    photos.value = res.data || []
   } catch (e) {
     console.error('加载照片失败', e)
   }
 }
 
+// 获取后台处理统计
+const loadProcessingStats = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/api/photos/processing-stats`)
+    processingStats.value = res.data
+    
+    // 如果还有未完成的，刷新照片列表
+    if (res.data.pending_total > 0) {
+      loadPhotos()
+    }
+  } catch (e) {
+    console.error('加载处理统计失败', e)
+  }
+}
+
 onMounted(() => {
   loadPhotos()
+  loadProcessingStats()
+  
+  // 每 5 秒刷新一次处理状态
+  statsInterval = setInterval(() => {
+    loadProcessingStats()
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (statsInterval) {
+    clearInterval(statsInterval)
+  }
 })
 </script>
 
 <style scoped>
+/* 后台处理进度条 */
+.processing-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.processing-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.processing-icon {
+  font-size: 32px;
+}
+
+.processing-info {
+  flex: 1;
+}
+
+.processing-info h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.processing-info p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.processing-progress {
+  width: 200px;
+}
+
+.processing-hint {
+  color: var(--primary-color);
+  font-size: 14px;
+  margin-left: 8px;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
