@@ -18,6 +18,22 @@
       </div>
     </div>
 
+    <!-- 批量操作工具栏 -->
+    <div v-if="selectedPhotos.length > 0" class="batch-toolbar">
+      <div class="batch-info">
+        <span class="batch-count">已选择 {{ selectedPhotos.length }} 张照片</span>
+      </div>
+      <div class="batch-actions">
+        <el-button type="danger" size="large" @click="batchDelete">
+          <span class="btn-icon">🗑️</span>
+          批量删除
+        </el-button>
+        <el-button size="large" @click="clearSelection">
+          取消选择
+        </el-button>
+      </div>
+    </div>
+
     <div class="page-header">
       <div>
         <h1 class="page-title">我的照片</h1>
@@ -28,10 +44,20 @@
           </span>
         </p>
       </div>
-      <el-button type="primary" size="large" @click="$router.push('/import')">
-        <span class="btn-icon">+</span>
-        导入照片
-      </el-button>
+      <div class="header-actions">
+        <el-button 
+          v-if="photos.length > 0"
+          :type="isSelectionMode ? 'primary' : 'default'"
+          size="large"
+          @click="toggleSelectionMode"
+        >
+          {{ isSelectionMode ? '完成' : '多选' }}
+        </el-button>
+        <el-button type="primary" size="large" @click="$router.push('/import')">
+          <span class="btn-icon">+</span>
+          导入照片
+        </el-button>
+      </div>
     </div>
 
     <el-empty v-if="photos.length === 0" class="empty-state" :image-size="200">
@@ -51,8 +77,16 @@
         v-for="(photo, index) in photos" 
         :key="photo.id" 
         class="photo-card"
+        :class="{ 'selected': isSelected(photo.id), 'selection-mode': isSelectionMode }"
       >
-        <div class="photo-image-wrapper" @click="openViewer(index)">
+        <!-- 选择复选框 -->
+        <div v-if="isSelectionMode" class="select-checkbox" @click.stop="toggleSelect(photo.id)">
+          <div :class="['checkbox', { checked: isSelected(photo.id) }]">
+            <span v-if="isSelected(photo.id)">✓</span>
+          </div>
+        </div>
+        
+        <div class="photo-image-wrapper" @click="isSelectionMode ? toggleSelect(photo.id) : openViewer(index)">
           <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
           <!-- 评分徽章 -->
           <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
@@ -65,15 +99,18 @@
         </div>
         
         <div class="photo-info">
-          <p class="photo-desc" @click="openViewer(index)">{{ photo.description || photo.filename }}</p>
+          <p class="photo-desc" @click="isSelectionMode ? toggleSelect(photo.id) : openViewer(index)">
+            {{ photo.description || photo.filename }}
+          </p>
           <div class="photo-meta">
-            <div class="photo-tags" @click="openViewer(index)">
+            <div class="photo-tags" @click="isSelectionMode ? toggleSelect(photo.id) : openViewer(index)">
               <el-tag v-for="tag in (photo.tags || []).slice(0, 2)" :key="tag" size="small">
                 {{ tag }}
               </el-tag>
               <el-tag v-if="!photo.tags?.length" size="small" type="info">处理中...</el-tag>
             </div>
             <el-button 
+              v-if="!isSelectionMode"
               type="danger" 
               text 
               size="small"
@@ -116,6 +153,86 @@ const processingStats = ref({
   total: 0
 })
 let statsInterval = null
+
+// 多选模式
+const isSelectionMode = ref(false)
+const selectedPhotos = ref([])
+
+// 切换选择模式
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value
+  if (!isSelectionMode.value) {
+    clearSelection()
+  }
+}
+
+// 是否已选择
+const isSelected = (photoId) => {
+  return selectedPhotos.value.includes(photoId)
+}
+
+// 切换选择
+const toggleSelect = (photoId) => {
+  const index = selectedPhotos.value.indexOf(photoId)
+  if (index > -1) {
+    selectedPhotos.value.splice(index, 1)
+  } else {
+    selectedPhotos.value.push(photoId)
+  }
+}
+
+// 清除选择
+const clearSelection = () => {
+  selectedPhotos.value = []
+  isSelectionMode.value = false
+}
+
+// 批量删除
+const batchDelete = async () => {
+  if (selectedPhotos.value.length === 0) return
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedPhotos.value.length} 张照片吗？此操作不可恢复。`,
+      '确认批量删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    // 逐个删除
+    let successCount = 0
+    let failCount = 0
+    
+    for (const photoId of selectedPhotos.value) {
+      try {
+        await axios.delete(`${API_BASE}/api/photos/${photoId}`)
+        successCount++
+      } catch (e) {
+        failCount++
+        console.error(`Failed to delete ${photoId}:`, e)
+      }
+    }
+    
+    // 刷新列表
+    photos.value = photos.value.filter(p => !selectedPhotos.value.includes(p.id))
+    
+    // 清除选择
+    clearSelection()
+    
+    if (failCount === 0) {
+      ElMessage.success(`成功删除 ${successCount} 张照片`)
+    } else {
+      ElMessage.warning(`删除完成：成功 ${successCount} 张，失败 ${failCount} 张`)
+    }
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
 
 const API_BASE = 'http://localhost:8000'
 
@@ -280,11 +397,51 @@ onUnmounted(() => {
   margin-left: 8px;
 }
 
+/* 批量操作工具栏 */
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(244, 63, 94, 0.1));
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  animation: slide-down 0.3s ease;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.batch-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.batch-actions {
+  display: flex;
+  gap: 12px;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 32px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .btn-icon {
@@ -389,5 +546,52 @@ onUnmounted(() => {
 
 .delete-btn:hover {
   background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 多选模式 */
+.photo-card.selection-mode {
+  cursor: pointer;
+}
+
+.photo-card.selected {
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+
+.select-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+}
+
+.checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkbox:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.checkbox.checked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkbox span {
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
 }
 </style>
