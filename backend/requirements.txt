@@ -11,6 +11,11 @@ numpy==1.26.4
 sherpa-onnx==1.12.24
 python-dateutil==2.9.0
 
+# 测试依赖
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2
+
 # 可选依赖 - 人脸识别功能
 # 安装前需要系统依赖：
 #   Ubuntu/Debian: sudo apt-get install cmake libdlib-dev
