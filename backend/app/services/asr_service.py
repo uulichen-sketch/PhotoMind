@@ -155,14 +155,21 @@ class ASRService:
             # 使用 ffmpeg 转换为 16kHz 单声道 WAV
             import subprocess
             converted_path = tmp_path.replace('.wav', '_converted.wav')
-            result = subprocess.run([
-                'ffmpeg', '-y', '-i', tmp_path,
-                '-ar', '16000', '-ac', '1',
-                converted_path
-            ], capture_output=True)
             
-            if result.returncode != 0:
-                logger.error(f"ffmpeg conversion failed: {result.stderr.decode()}")
+            try:
+                result = subprocess.run([
+                    'ffmpeg', '-y', '-i', tmp_path,
+                    '-ar', '16000', '-ac', '1',
+                    converted_path
+                ], capture_output=True)
+                
+                if result.returncode != 0:
+                    logger.error(f"ffmpeg conversion failed: {result.stderr.decode()}")
+                    import os
+                    os.unlink(tmp_path)
+                    return ""
+            except FileNotFoundError:
+                logger.error("ffmpeg not found. Please install ffmpeg.")
                 import os
                 os.unlink(tmp_path)
                 return ""
