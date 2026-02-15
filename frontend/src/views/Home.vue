@@ -70,11 +70,11 @@ const viewerIndex = ref(0)
 const API_BASE = 'http://localhost:8000'
 
 const getPhotoUrl = (photo) => {
-  return `${API_BASE}/api/photo/${photo.id}/thumbnail`
+  return `${API_BASE}/api/photos/${photo.id}/thumbnail`
 }
 
 const getPhotoFileUrl = (photo) => {
-  return `${API_BASE}/api/photo/${photo.id}/file`
+  return `${API_BASE}/api/photos/${photo.id}/file`
 }
 
 const goToDetail = (id) => {

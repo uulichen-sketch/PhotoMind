@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/photo", tags=["photo"])
+router = APIRouter(prefix="/api/photos", tags=["photo"])
 
 
 @router.get("/", response_model=List[PhotoMetadata])
@@ -143,8 +143,8 @@ async def get_thumbnail(photo_id: str, size: int = 300):
     )
 
 
-@router.get("/{photo_id}/original")
-async def get_original_photo(photo_id: str):
+@router.get("/{photo_id}/file")
+async def get_photo_file(photo_id: str):
     """
     获取原始照片
     

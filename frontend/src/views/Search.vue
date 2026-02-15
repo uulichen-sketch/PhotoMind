@@ -270,11 +270,11 @@ let mediaRecorder = null
 let audioChunks = []
 
 const getPhotoUrl = (photo) => {
-  return `${API_BASE}/api/photo/${photo.id}/thumbnail`
+  return `${API_BASE}/api/photos/${photo.id}/thumbnail`
 }
 
 const getPhotoFileUrl = (photo) => {
-  return `${API_BASE}/api/photo/${photo.id}/file`
+  return `${API_BASE}/api/photos/${photo.id}/file`
 }
 
 // 图片浏览器数据

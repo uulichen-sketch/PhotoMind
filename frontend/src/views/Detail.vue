@@ -173,7 +173,7 @@ const loading = ref(true)
 const viewerVisible = ref(false)
 
 const photoId = computed(() => route.params.id)
-const photoUrl = computed(() => `${API_BASE}/api/photo/${photoId.value}/file`)
+const photoUrl = computed(() => `${API_BASE}/api/photos/${photoId.value}/file`)
 
 // 图片浏览器数据
 const viewerImages = computed(() => {
@@ -210,7 +210,7 @@ const formatSize = (bytes) => {
 
 const loadPhoto = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/photo/${photoId.value}`)
+    const res = await axios.get(`${API_BASE}/api/photos/${photoId.value}`)
     photo.value = res.data
   } catch (e) {
     ElMessage.error('加载照片失败')
@@ -235,7 +235,7 @@ const deletePhoto = async () => {
       }
     )
     
-    await axios.delete(`${API_BASE}/api/photo/${photoId.value}`)
+    await axios.delete(`${API_BASE}/api/photos/${photoId.value}`)
     ElMessage.success('删除成功')
     router.push('/')
   } catch (e) {
