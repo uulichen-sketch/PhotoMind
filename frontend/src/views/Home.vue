@@ -51,19 +51,37 @@
         v-for="(photo, index) in photos" 
         :key="photo.id" 
         class="photo-card"
-        @click="openViewer(index)"
       >
-        <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
-        <!-- 评分徽章 -->
-        <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
-          {{ photo.scores.overall.toFixed(1) }}
+        <div class="photo-image-wrapper" @click="openViewer(index)">
+          <img :src="getPhotoUrl(photo)" :alt="photo.description" loading="lazy" />
+          <!-- 评分徽章 -->
+          <div v-if="photo.scores?.overall" class="score-badge" :style="getScoreStyle(photo.scores.overall)">
+            {{ photo.scores.overall.toFixed(1) }}
+          </div>
+          <!-- 处理中标记 -->
+          <div v-else-if="!photo.ai_processed && !photo.ai_error" class="processing-badge">
+            <span class="spinner"></span>
+          </div>
         </div>
+        
         <div class="photo-info">
-          <p class="photo-desc">{{ photo.description || photo.filename }}</p>
-          <div class="photo-tags">
-            <el-tag v-for="tag in (photo.tags || []).slice(0, 3)" :key="tag" size="small">
-              {{ tag }}
-            </el-tag>
+          <p class="photo-desc" @click="openViewer(index)">{{ photo.description || photo.filename }}</p>
+          <div class="photo-meta">
+            <div class="photo-tags" @click="openViewer(index)">
+              <el-tag v-for="tag in (photo.tags || []).slice(0, 2)" :key="tag" size="small">
+                {{ tag }}
+              </el-tag>
+              <el-tag v-if="!photo.tags?.length" size="small" type="info">处理中...</el-tag>
+            </div>
+            <el-button 
+              type="danger" 
+              text 
+              size="small"
+              class="delete-btn"
+              @click.stop="deletePhoto(photo)"
+            >
+              🗑️
+            </el-button>
           </div>
         </div>
       </div>
@@ -83,6 +101,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import ImageViewer from '../components/ImageViewer.vue'
 
 const router = useRouter()
@@ -154,6 +173,31 @@ const loadPhotos = async () => {
     photos.value = res.data || []
   } catch (e) {
     console.error('加载照片失败', e)
+  }
+}
+
+// 删除照片
+const deletePhoto = async (photo) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除 "${photo.filename}" 吗？此操作不可恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    await axios.delete(`${API_BASE}/api/photos/${photo.id}`)
+    ElMessage.success('删除成功')
+    
+    // 从列表中移除
+    photos.value = photos.value.filter(p => p.id !== photo.id)
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败: ' + (e.response?.data?.detail || e.message))
+    }
   }
 }
 
@@ -285,5 +329,65 @@ onUnmounted(() => {
   color: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 2;
+}
+
+/* 处理中标记 */
+.processing-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.processing-badge .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid white;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 照片卡片优化 */
+.photo-image-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.photo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.photo-tags {
+  flex: 1;
+  cursor: pointer;
+}
+
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 4px 8px !important;
+}
+
+.photo-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
 }
 </style>

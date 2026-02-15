@@ -104,11 +104,31 @@
 
           <el-divider />
 
+          <!-- AI 情感/氛围 -->
+          <div v-if="photo.mood || photo.subjects" class="info-block">
+            <div class="block-header">
+              <div class="block-icon mood-icon">✨</div>
+              <h3>AI 识别</h3>
+            </div>
+            <div class="mood-content">
+              <div v-if="photo.mood" class="mood-item">
+                <span class="mood-label">氛围:</span>
+                <span class="mood-value">{{ photo.mood }}</span>
+              </div>
+              <div v-if="photo.subjects" class="mood-item">
+                <span class="mood-label">主体:</span>
+                <span class="mood-value">{{ photo.subjects }}</span>
+              </div>
+            </div>
+          </div>
+
+          <el-divider v-if="photo.mood || photo.subjects" />
+
           <!-- 元数据信息 -->
           <div class="info-block">
             <div class="block-header">
               <div class="block-icon meta-icon">📋</div>
-              <h3>详细信息</h3>
+              <h3>EXIF 信息</h3>
             </div>
             <div class="meta-list">
               <div class="meta-item">
@@ -123,13 +143,33 @@
                 <span class="meta-label">拍摄地点</span>
                 <span class="meta-value">{{ photo.location || '未知' }}</span>
               </div>
+              <div v-if="photo.gps_latitude && photo.gps_longitude" class="meta-item">
+                <span class="meta-label">GPS 坐标</span>
+                <span class="meta-value">{{ photo.gps_latitude }}, {{ photo.gps_longitude }}</span>
+              </div>
               <div class="meta-item">
-                <span class="meta-label">相机</span>
+                <span class="meta-label">相机品牌</span>
                 <span class="meta-value">{{ photo.camera || '未知' }}</span>
               </div>
               <div class="meta-item">
-                <span class="meta-label">镜头</span>
+                <span class="meta-label">镜头信息</span>
                 <span class="meta-value">{{ photo.lens || '未知' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">ISO 感光度</span>
+                <span class="meta-value">{{ photo.iso || '-' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">光圈值</span>
+                <span class="meta-value">{{ photo.aperture || '-' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">快门速度</span>
+                <span class="meta-value">{{ photo.shutter || '-' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">焦距</span>
+                <span class="meta-value">{{ photo.focal_length || '-' }}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-label">文件大小</span>
@@ -138,6 +178,10 @@
               <div v-if="photo.width && photo.height" class="meta-item">
                 <span class="meta-label">分辨率</span>
                 <span class="meta-value">{{ photo.width }} × {{ photo.height }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">照片 ID</span>
+                <span class="meta-value id-value">{{ photo.id }}</span>
               </div>
             </div>
           </div>
@@ -493,6 +537,44 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.id-value {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* AI 情感 */
+.mood-icon {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.mood-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mood-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mood-label {
+  font-size: 14px;
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+.mood-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 4px 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 6px;
 }
 
 /* 响应式 */
