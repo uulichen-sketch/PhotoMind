@@ -148,10 +148,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import ImportStream from '../components/ImportStream.vue'
 
 const router = useRouter()
@@ -164,6 +164,44 @@ const selectedFiles = ref([])
 const uploading = ref(false)
 const streamTaskId = ref('')
 const importHistory = ref([])
+
+// 页面加载时检查是否有正在进行的任务
+onMounted(() => {
+  checkActiveTasks()
+})
+
+// 检查活跃任务
+const checkActiveTasks = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/api/import-stream/tasks?limit=5`)
+    const tasks = res.data
+    
+    // 找到最近的一个进行中的任务
+    const activeTask = tasks.find(t => t.status === 'processing' || t.status === 'pending')
+    
+    if (activeTask) {
+      // 询问用户是否恢复
+      ElMessageBox.confirm(
+        `发现正在进行的导入任务（${activeTask.processed}/${activeTask.total}），是否恢复查看进度？`,
+        '恢复导入进度',
+        {
+          confirmButtonText: '恢复进度',
+          cancelButtonText: '新建导入',
+          type: 'info',
+        }
+      ).then(() => {
+        // 恢复进度
+        streamTaskId.value = activeTask.task_id
+        uploading.value = true
+        step.value = 3
+      }).catch(() => {
+        // 用户选择新建导入，不做任何事
+      })
+    }
+  } catch (e) {
+    console.error('Check active tasks failed:', e)
+  }
+}
 
 // 选择目录
 const selectDirectory = () => {
