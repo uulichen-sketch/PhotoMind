@@ -166,6 +166,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   taskId: {
@@ -239,15 +240,30 @@ const getScoreStyle = (score) => {
   return { background: color }
 }
 
-// 连接 SSE
+// 连接 SSE - 支持断点续传
 let eventSource = null
+const lastEventIndex = ref(0)
+const isReconnecting = ref(false)
 
 const connectStream = () => {
-  eventSource = new EventSource(`${API_BASE}/api/import-stream/events/${props.taskId}`)
+  // 如果有历史索引，尝试从该位置恢复
+  const url = `${API_BASE}/api/import-stream/events/${props.taskId}?last_index=${lastEventIndex.value}`
+  
+  eventSource = new EventSource(url)
+  isReconnecting.value = false
   
   eventSource.onmessage = (event) => {
     try {
-      const { type, data } = JSON.parse(event.data)
+      const parsed = JSON.parse(event.data)
+      // 解析后端返回的事件格式
+      const type = parsed.type
+      const data = parsed.data
+      
+      // 记录事件索引
+      if (parsed.timestamp) {
+        lastEventIndex.value++
+      }
+      
       handleEvent(type, data)
     } catch (e) {
       console.error('Parse event error:', e)
@@ -256,8 +272,22 @@ const connectStream = () => {
   
   eventSource.onerror = (e) => {
     console.error('SSE error:', e)
-    error.value = '连接出错'
-    eventSource.close()
+    
+    // 如果任务未完成，尝试重连
+    if (!isComplete.value && !isReconnecting.value) {
+      isReconnecting.value = true
+      error.value = '连接断开，正在尝试重连...'
+      eventSource.close()
+      
+      // 3秒后重连
+      setTimeout(() => {
+        if (!isComplete.value) {
+          connectStream()
+        }
+      }, 3000)
+    } else {
+      error.value = '连接出错'
+    }
   }
 }
 
@@ -333,8 +363,49 @@ const handleEvent = (type, data) => {
   }
 }
 
+// 加载任务历史状态
+const loadTaskHistory = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/api/import-stream/tasks/${props.taskId}`)
+    const task = res.data
+    
+    // 恢复基本状态
+    total.value = task.total
+    processed.value = task.processed
+    failed.value = task.failed
+    
+    // 如果任务已完成，直接显示完成状态
+    if (task.status === 'completed') {
+      isComplete.value = true
+      return
+    }
+    
+    // 如果有历史事件，获取并恢复
+    if (task.event_count > 0) {
+      await restoreEvents(task.event_count)
+    }
+    
+    // 如果任务还在进行中，建立 SSE 连接
+    if (task.status === 'processing' || task.status === 'pending') {
+      connectStream()
+    }
+  } catch (e) {
+    console.error('Load task history failed:', e)
+    // 直接尝试连接
+    connectStream()
+  }
+}
+
+// 恢复历史事件
+const restoreEvents = async (eventCount) => {
+  // 这里简化处理，实际可以通过另一个接口分批获取历史事件
+  // 目前先只恢复计数，让用户知道进度
+  console.log(`Task has ${eventCount} historical events`)
+}
+
 onMounted(() => {
-  connectStream()
+  // 先加载历史状态，再建立连接
+  loadTaskHistory()
 })
 
 onUnmounted(() => {
