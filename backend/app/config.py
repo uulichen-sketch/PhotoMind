@@ -14,9 +14,9 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # 数据目录
-    data_dir: str = "./data"
-    photos_dir: str = "./data/photos"
-    chroma_dir: str = "./data/chroma"
+    data_dir: str = "/app/data"
+    photos_dir: str = "/app/data/photos"
+    chroma_dir: str = "/app/data/chroma"
     
     # 智谱 AI 配置
     zhipu_api_key: str = "334a0d2da68f47bd93c43d0916508609.Lrk85xXB1i7Bb1W5"

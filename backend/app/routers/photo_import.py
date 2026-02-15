@@ -2,8 +2,8 @@
 import os
 import uuid
 import asyncio
-import tempfile
 import shutil
+from datetime import datetime
 from typing import Dict, List
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File
 from app.models import ImportStartRequest, ImportStatusResponse, ImportStatus
@@ -160,14 +160,13 @@ async def list_import_tasks():
     return list(import_tasks.values())
 
 
-async def process_uploaded_files(task_id: str, file_paths: List[str], temp_dir: str):
+async def process_uploaded_files(task_id: str, file_paths: List[str]):
     """
     处理上传的文件
     
     Args:
         task_id: 任务 ID
-        file_paths: 文件路径列表
-        temp_dir: 临时目录，处理完成后删除
+        file_paths: 文件路径列表（已保存在持久化目录）
     """
     task = import_tasks[task_id]
     task["status"] = ImportStatus.PROCESSING
@@ -233,14 +232,6 @@ async def process_uploaded_files(task_id: str, file_paths: List[str], temp_dir: 
         logger.error(f"Import task {task_id} failed: {e}")
         task["status"] = ImportStatus.FAILED
         task["message"] = str(e)
-    finally:
-        # 清理临时目录
-        try:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-                logger.info(f"Cleaned up temp directory: {temp_dir}")
-        except Exception as e:
-            logger.warning(f"Failed to clean up temp directory: {e}")
 
 
 @router.post("/upload", response_model=ImportStatusResponse)
@@ -265,22 +256,31 @@ async def upload_photos(
     if not image_files:
         raise HTTPException(status_code=400, detail="未找到图片文件")
     
-    # 创建临时目录
-    temp_dir = tempfile.mkdtemp(prefix="photomind_upload_")
-    logger.info(f"Created temp directory: {temp_dir}")
+    # 确保照片存储目录存在
+    from app.config import settings
+    photos_storage_dir = settings.photos_dir
+    os.makedirs(photos_storage_dir, exist_ok=True)
     
-    # 保存上传的文件
+    # 创建按日期的子目录
+    today = datetime.now().strftime("%Y%m%d")
+    storage_dir = os.path.join(photos_storage_dir, today)
+    os.makedirs(storage_dir, exist_ok=True)
+    
+    logger.info(f"Storage directory: {storage_dir}")
+    
+    # 保存上传的文件到持久化目录
     saved_paths = []
     for file in image_files:
-        file_path = os.path.join(temp_dir, file.filename)
-        # 确保目录存在
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # 生成唯一文件名
+        ext = os.path.splitext(file.filename)[1].lower()
+        unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
+        file_path = os.path.join(storage_dir, unique_name)
         
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
         saved_paths.append(file_path)
-        logger.info(f"Saved uploaded file: {file_path}")
+        logger.info(f"Saved photo to {file_path}")
     
     # 创建任务
     task_id = f"import_{uuid.uuid4().hex[:8]}"
@@ -295,6 +295,6 @@ async def upload_photos(
     }
     
     # 启动后台任务
-    background_tasks.add_task(process_uploaded_files, task_id, saved_paths, temp_dir)
+    background_tasks.add_task(process_uploaded_files, task_id, saved_paths)
     
     return ImportStatusResponse(**import_tasks[task_id])

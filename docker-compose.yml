@@ -14,6 +14,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ${PHOTO_PATH:-/tmp/photos}:/photos:ro
+      - ./backend/data/photos:/app/data/photos
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

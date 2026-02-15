@@ -3,6 +3,8 @@ import os
 import uuid
 import asyncio
 import json
+import shutil
+from datetime import datetime
 from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -240,33 +242,36 @@ async def start_stream_import(
     manager = ImportStreamManager(task_id)
     active_streams[task_id] = manager.queue
     
-    # 保存上传的文件
-    import tempfile
-    import shutil
+    # 确保照片存储目录存在
+    photos_storage_dir = settings.photos_dir
+    os.makedirs(photos_storage_dir, exist_ok=True)
     
-    temp_dir = tempfile.mkdtemp(prefix="photomind_stream_")
+    # 创建按日期的子目录
+    today = datetime.now().strftime("%Y%m%d")
+    storage_dir = os.path.join(photos_storage_dir, today)
+    os.makedirs(storage_dir, exist_ok=True)
+    
     saved_paths = []
     
     for file in image_files:
-        file_path = os.path.join(temp_dir, file.filename)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # 生成唯一文件名，避免冲突
+        ext = os.path.splitext(file.filename)[1].lower()
+        unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
+        file_path = os.path.join(storage_dir, unique_name)
         
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
+        
         saved_paths.append(file_path)
+        logger.info(f"Saved photo to {file_path}")
     
     # 启动后台处理
     async def process():
         try:
             await manager.process_files(saved_paths)
-        finally:
-            # 清理临时文件
-            try:
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
-            except:
-                pass
+        except Exception as e:
+            logger.error(f"Import process error: {e}")
     
     # 创建新任务运行处理
     asyncio.create_task(process())
