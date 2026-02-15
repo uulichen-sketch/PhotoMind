@@ -13,6 +13,7 @@ services:
       - CHROMA_PERSIST_DIR=/app/data/chroma
     volumes:
       - ./backend/data:/app/data
+      - ./backend/models:/app/models
       - ${PHOTO_PATH:-/tmp/photos}:/photos:ro
       - ./backend/data/photos:/app/data/photos
     restart: unless-stopped

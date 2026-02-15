@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     zhipu_vision_model: str = "glm-4v-flash"  # 图像识别模型
     
     # ASR 模型配置
-    asr_model_dir: str = "./models/asr"  # 相对路径，方便 Docker 部署
+    asr_model_dir: str = "/app/models/asr"  # Docker 容器中挂载的绝对路径
     asr_model_url: str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2"
     
     # 高德地图 API 配置（用于 GPS 逆地理编码）
