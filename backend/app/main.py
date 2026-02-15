@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models import HealthResponse
-from app.routers import search, photo, import_router
+from app.routers import search, photo, import_router, import_stream
 from app.services.vector_service import vector_service
 from app.services.asr_service import asr_service, auto_download_asr_models
 from app.services.geocoding_service import geocoding_service
@@ -39,6 +39,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(search.router)
 app.include_router(import_router)
+app.include_router(import_stream.router)
 app.include_router(photo.router)
 
 

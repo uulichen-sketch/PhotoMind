@@ -100,38 +100,15 @@
         </div>
       </div>
 
-      <!-- 步骤 3: 导入进度 -->
+      <!-- 步骤 3: 导入进度（实时流式展示） -->
       <div v-if="step === 3" class="step-content">
-        <div class="progress-container">
-          <div class="progress-header">
-            <div class="progress-icon" :class="{ completed: isCompleted, failed: isFailed }">
-              {{ progressIcon }}
-            </div>
-            <div class="progress-info">
-              <h3>{{ progressTitle }}</h3>
-              <p class="progress-desc">{{ progressDesc }}</p>
-            </div>
-          </div>
-          
-          <el-progress 
-            :percentage="progressPercent" 
-            :status="progressStatus"
-            :stroke-width="12"
-            :show-text="true"
-          />
-          
-          <div v-if="currentFile" class="current-file">
-            <span class="file-label">正在处理:</span>
-            <span class="file-name">{{ currentFile }}</span>
-          </div>
-
-          <div v-if="isCompleted || isFailed" class="progress-actions">
-            <el-button type="primary" size="large" @click="resetImport">
-              导入更多照片
-            </el-button>
-            <el-button size="large" @click="$router.push('/')">查看照片</el-button>
-          </div>
-        </div>
+        <ImportStream
+          v-if="streamTaskId"
+          :task-id="streamTaskId"
+          @complete="handleImportComplete"
+          @cancel="resetImport"
+          @retry="startUpload"
+        />
       </div>
     </el-card>
 
@@ -155,9 +132,9 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="进度" width="150">
+        <el-table-column label="数量" width="100">
           <template #default="{ row }">
-            {{ row.processed }} / {{ row.total }}
+            {{ row.total }} 张
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="时间">
@@ -172,9 +149,12 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import ImportStream from '../components/ImportStream.vue'
 
+const router = useRouter()
 const API_BASE = 'http://localhost:8000'
 
 const fileInput = ref(null)
@@ -182,47 +162,8 @@ const step = ref(1)
 const isDragover = ref(false)
 const selectedFiles = ref([])
 const uploading = ref(false)
-const taskId = ref('')
-const status = ref('')
-const total = ref(0)
-const processed = ref(0)
-const failed = ref(0)
-const currentFile = ref('')
+const streamTaskId = ref('')
 const importHistory = ref([])
-
-let pollTimer = null
-
-const progressPercent = computed(() => {
-  if (total.value === 0) return 0
-  return Math.round((processed.value / total.value) * 100)
-})
-
-const progressStatus = computed(() => {
-  if (status.value === 'completed') return 'success'
-  if (status.value === 'failed') return 'exception'
-  return null
-})
-
-const isCompleted = computed(() => status.value === 'completed')
-const isFailed = computed(() => status.value === 'failed')
-
-const progressIcon = computed(() => {
-  if (isCompleted.value) return '✅'
-  if (isFailed.value) return '❌'
-  return '📤'
-})
-
-const progressTitle = computed(() => {
-  if (isCompleted.value) return '导入完成！'
-  if (isFailed.value) return '导入失败'
-  return '正在导入...'
-})
-
-const progressDesc = computed(() => {
-  if (isCompleted.value) return `成功导入 ${processed.value - failed.value} 张照片`
-  if (isFailed.value) return '请检查网络连接后重试'
-  return `已处理 ${processed.value} / ${total.value} 张`
-})
 
 // 选择目录
 const selectDirectory = () => {
@@ -273,7 +214,7 @@ const formatSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-// 开始上传
+// 开始上传（使用流式接口）
 const startUpload = async () => {
   if (selectedFiles.value.length === 0) {
     ElMessage.warning('请先选择文件')
@@ -290,65 +231,36 @@ const startUpload = async () => {
       formData.append('files', file)
     })
 
-    // 上传文件
-    const res = await axios.post(`${API_BASE}/api/import/upload`, formData, {
+    // 使用流式上传接口
+    const res = await axios.post(`${API_BASE}/api/import-stream/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     
-    taskId.value = res.data.task_id
-    status.value = res.data.status
-    total.value = selectedFiles.value.length
-    
-    // 开始轮询状态
-    pollTimer = setInterval(pollStatus, 1000)
+    streamTaskId.value = res.data.task_id
     
     ElMessage.success('导入任务已启动')
   } catch (e) {
     ElMessage.error('上传失败: ' + (e.response?.data?.detail || e.message))
-    status.value = 'failed'
     uploading.value = false
   }
 }
 
-// 轮询状态
-const pollStatus = async () => {
-  if (!taskId.value) return
-  
-  try {
-    const res = await axios.get(`${API_BASE}/api/import/status/${taskId.value}`)
-    const data = res.data
-    
-    status.value = data.status
-    total.value = data.total
-    processed.value = data.processed
-    failed.value = data.failed
-    currentFile.value = data.current_file || ''
-    
-    if (data.status === 'completed' || data.status === 'failed') {
-      clearInterval(pollTimer)
-      pollTimer = null
-      uploading.value = false
-      
-      importHistory.value.unshift({
-        ...data,
-        created_at: new Date().toISOString()
-      })
-    }
-  } catch (e) {
-    console.error('获取状态失败', e)
-  }
+// 导入完成处理
+const handleImportComplete = () => {
+  uploading.value = false
+  importHistory.value.unshift({
+    task_id: streamTaskId.value,
+    status: 'completed',
+    total: selectedFiles.value.length,
+    created_at: new Date().toISOString()
+  })
 }
 
 // 重置导入
 const resetImport = () => {
   step.value = 1
   selectedFiles.value = []
-  taskId.value = ''
-  status.value = ''
-  total.value = 0
-  processed.value = 0
-  failed.value = 0
-  currentFile.value = ''
+  streamTaskId.value = ''
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -379,12 +291,6 @@ const formatTime = (time) => {
   if (!time) return '-'
   return new Date(time).toLocaleString('zh-CN')
 }
-
-onUnmounted(() => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-  }
-})
 </script>
 
 <style scoped>
