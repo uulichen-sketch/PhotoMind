@@ -93,7 +93,9 @@ async def list_photos(
             # 添加状态字段（不在模型中，但前端需要）
             result.append({
                 **photo_data.model_dump(),
-                "status": photo_status
+                "status": photo_status,
+                "ai_processed": ai_processed,
+                "ai_error": ai_error
             })
         except Exception as e:
             logger.error(f"Failed to parse photo metadata: {e}")
@@ -162,7 +164,9 @@ async def upload_photos(
             document = f"{metadata['filename']} {metadata.get('datetime', '')}"
             vector_service.add_photo(photo_id, metadata, document)
             
-            # 添加到 AI 处理队列
+            # 添加到 AI 处理队列（确保处理器已启动）
+            if not photo_processor._is_running:
+                await photo_processor.start()
             await photo_processor.add_photo(photo_id, file_path, metadata)
             
             uploaded_photos.append({

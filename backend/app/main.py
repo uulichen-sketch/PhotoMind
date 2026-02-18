@@ -3,12 +3,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models import HealthResponse
-from app.routers import search, photos, import_router, import_stream
+from app.routers import search, photos, import_router, import_stream, faces
 from app.services.photo_processor import photo_processor
 from app.services.vector_service import vector_service
 from app.services.asr_service import asr_service, auto_download_asr_models
 from app.services.geocoding_service import geocoding_service
-from app.services.face_service import face_service
+# face_recognition 是可选依赖
+try:
+    from app.services.face_service import face_service
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    face_service = None
+    FACE_RECOGNITION_AVAILABLE = False
 import logging
 
 # 配置日志
@@ -42,6 +48,7 @@ app.include_router(search.router)
 app.include_router(import_router)
 app.include_router(import_stream.router)
 app.include_router(photos.router)
+app.include_router(faces.router)
 
 
 @app.get("/", response_model=HealthResponse)
@@ -69,20 +76,27 @@ async def health_detailed():
     """详细健康检查 - 包含所有服务状态"""
     asr_health = await asr_service.health_check()
     geo_health = await geocoding_service.health_check()
-    face_health = await face_service.health_check()
+    
+    services = {
+        "chromadb": {
+            "status": "healthy" if vector_service._client else "unhealthy",
+            "photo_count": vector_service.count()
+        },
+        "asr": asr_health,
+        "geocoding": geo_health,
+    }
+    
+    # 可选的人脸识别服务
+    if FACE_RECOGNITION_AVAILABLE and face_service:
+        face_health = await face_service.health_check()
+        services["face_recognition"] = face_health
+    else:
+        services["face_recognition"] = {"status": "disabled", "message": "face_recognition not installed"}
     
     return {
         "status": "healthy",
         "version": settings.app_version,
-        "services": {
-            "chromadb": {
-                "status": "healthy" if vector_service._client else "unhealthy",
-                "photo_count": vector_service.count()
-            },
-            "asr": asr_health,
-            "geocoding": geo_health,
-            "face_recognition": face_health
-        }
+        "services": services
     }
 
 
@@ -106,11 +120,15 @@ async def startup_event():
     else:
         logger.warning("⚠️ Geocoding service disabled (no API key)")
     
-    face_status = face_service.status
-    if face_status['available']:
-        logger.info("✅ Face recognition service is available")
+    # 可选的人脸识别服务
+    if FACE_RECOGNITION_AVAILABLE and face_service:
+        face_status = face_service.status
+        if face_status['available']:
+            logger.info("✅ Face recognition service is available")
+        else:
+            logger.warning(f"⚠️ Face recognition unavailable: {face_status['error']}")
     else:
-        logger.warning(f"⚠️ Face recognition unavailable: {face_status['error']}")
+        logger.info("ℹ️ Face recognition service disabled (optional)")
     
     # 自动下载 ASR 模型（在后台线程中）
     auto_download_asr_models()

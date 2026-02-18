@@ -2,10 +2,17 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including CMake for face-recognition/dlib)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    cmake \
+    build-essential \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    libgtk-3-dev \
+    libboost-python-dev \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*

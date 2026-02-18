@@ -19,6 +19,8 @@ services:
       - ./backend/models:/app/models
       - ${PHOTO_PATH:-/tmp/photos}:/photos:ro
       - ./backend/data/photos:/app/data/photos
+      # 开发模式：挂载代码目录，无需重新构建即可应用代码更改
+      - ./backend/app:/app/app:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

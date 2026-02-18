@@ -39,6 +39,7 @@ const menuItems = [
   { path: '/', label: '首页', icon: '🏠' },
   { path: '/import', label: '导入', icon: '📥' },
   { path: '/search', label: '搜索', icon: '🔍' },
+  { path: '/faces', label: '人物', icon: '👤' },
 ]
 </script>
 

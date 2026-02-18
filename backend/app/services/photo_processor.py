@@ -139,8 +139,8 @@ class PhotoProcessor:
             if metadata.get("location"):
                 document += f" {metadata['location']}"
             
-            # 4. 存入向量库
-            vector_service.add_photo(photo_id, metadata, document)
+            # 4. 更新向量库（使用 upsert 更新已存在的记录）
+            vector_service.update_photo(photo_id, metadata, document)
             
             self._stats["completed"] += 1
             logger.info(f"Photo {photo_id} processed successfully")
@@ -162,7 +162,7 @@ class PhotoProcessor:
                 if metadata.get("location"):
                     document += f" {metadata['location']}"
                 
-                vector_service.add_photo(photo_id, metadata, document)
+                vector_service.update_photo(photo_id, metadata, document)
                 logger.info(f"Saved failed status for photo {photo_id}")
             except Exception as save_error:
                 logger.error(f"Failed to save error status for {photo_id}: {save_error}")

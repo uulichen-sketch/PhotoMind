@@ -3,12 +3,14 @@ import Home from './views/Home.vue'
 import Import from './views/Import.vue'
 import Search from './views/Search.vue'
 import Detail from './views/Detail.vue'
+import Faces from './views/Faces.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
   { path: '/import', name: 'Import', component: Import },
   { path: '/search', name: 'Search', component: Search },
-  { path: '/photo/:id', name: 'Detail', component: Detail }
+  { path: '/photo/:id', name: 'Detail', component: Detail },
+  { path: '/faces', name: 'Faces', component: Faces }
 ]
 
 const router = createRouter({

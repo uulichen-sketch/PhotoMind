@@ -80,12 +80,13 @@
         <!-- 底部信息 -->
         <div v-if="currentImage" class="viewer-footer">
           <div class="footer-content">
+            <!-- 左侧：基本信息和描述 -->
             <div class="footer-left">
               <div class="image-info">
                 <span v-if="currentImage.datetime" class="info-item">
                   📅 {{ formatDate(currentImage.datetime) }}
                 </span>
-                <span v-if="currentImage.location" class="info-item">
+                <span v-if="currentImage.location" class="info-item location">
                   📍 {{ currentImage.location }}
                 </span>
                 <span v-if="currentImage.camera" class="info-item">
@@ -96,6 +97,7 @@
                 {{ currentImage.description }}
               </p>
             </div>
+            <!-- 右侧：评分 -->
             <div v-if="currentImage.scores" class="footer-right">
               <div class="mini-score">
                 <span class="score-badge" :style="getScoreStyle(currentImage.scores.overall)">
@@ -107,6 +109,51 @@
               </div>
             </div>
           </div>
+          
+          <!-- EXIF 详细信息面板 -->
+          <div v-if="hasExifInfo" class="exif-panel">
+            <div class="exif-title" @click="showExifDetail = !showExifDetail">
+              <span>📷 拍摄参数</span>
+              <span class="exif-toggle">{{ showExifDetail ? '▼' : '▶' }}</span>
+            </div>
+            <div v-if="showExifDetail" class="exif-detail">
+              <div class="exif-grid">
+                <div v-if="currentImage.camera" class="exif-item">
+                  <span class="exif-label">相机</span>
+                  <span class="exif-value">{{ currentImage.camera }}</span>
+                </div>
+                <div v-if="currentImage.lens" class="exif-item">
+                  <span class="exif-label">镜头</span>
+                  <span class="exif-value">{{ currentImage.lens }}</span>
+                </div>
+                <div v-if="currentImage.focal_length" class="exif-item">
+                  <span class="exif-label">焦距</span>
+                  <span class="exif-value">{{ currentImage.focal_length }}</span>
+                </div>
+                <div v-if="currentImage.aperture" class="exif-item">
+                  <span class="exif-label">光圈</span>
+                  <span class="exif-value">{{ currentImage.aperture }}</span>
+                </div>
+                <div v-if="currentImage.shutter" class="exif-item">
+                  <span class="exif-label">快门</span>
+                  <span class="exif-value">{{ currentImage.shutter }}</span>
+                </div>
+                <div v-if="currentImage.iso" class="exif-item">
+                  <span class="exif-label">ISO</span>
+                  <span class="exif-value">{{ currentImage.iso }}</span>
+                </div>
+                <div v-if="currentImage.width && currentImage.height" class="exif-item">
+                  <span class="exif-label">分辨率</span>
+                  <span class="exif-value">{{ currentImage.width }} × {{ currentImage.height }}</span>
+                </div>
+                <div v-if="currentImage.file_size" class="exif-item">
+                  <span class="exif-label">文件大小</span>
+                  <span class="exif-value">{{ formatFileSize(currentImage.file_size) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- 详细评分面板 -->
           <div v-if="showScoreDetail && currentImage.scores" class="score-detail-panel">
             <PhotoScore :scores="currentImage.scores" />
@@ -150,10 +197,20 @@ const dragStart = ref({ x: 0, y: 0 })
 
 // 评分详情显示状态
 const showScoreDetail = ref(false)
+// EXIF详情显示状态
+const showExifDetail = ref(false)
 
 // 计算当前图片
 const currentImage = computed(() => {
   return props.images[currentIndex.value] || null
+})
+
+// 检查是否有EXIF信息
+const hasExifInfo = computed(() => {
+  const img = currentImage.value
+  if (!img) return false
+  return !!(img.camera || img.lens || img.focal_length || img.aperture ||
+            img.shutter || img.iso || (img.width && img.height) || img.file_size)
 })
 
 // 图片样式
@@ -344,6 +401,13 @@ const getScoreStyle = (score) => {
     background: color,
     color: 'white'
   }
+}
+
+const formatFileSize = (bytes) => {
+  if (!bytes) return ''
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 </script>
 
@@ -619,6 +683,65 @@ const getScoreStyle = (score) => {
 
 .score-detail-btn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* EXIF 面板 */
+.exif-panel {
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+}
+
+.exif-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.exif-title:hover {
+  color: white;
+}
+
+.exif-toggle {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.exif-detail {
+  margin-top: 12px;
+  animation: slide-up 0.3s ease;
+}
+
+.exif-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.exif-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exif-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.exif-value {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.location {
+  color: #60a5fa !important;
 }
 
 /* 评分详情面板 */

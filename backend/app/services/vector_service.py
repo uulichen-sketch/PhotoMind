@@ -85,6 +85,42 @@ class VectorService:
             logger.error(f"Failed to add photo {photo_id}: {e}")
             return False
     
+    def update_photo(self, photo_id: str, metadata: Dict[str, Any], document: str):
+        """
+        更新照片到向量库（使用 upsert）
+        
+        Args:
+            photo_id: 照片唯一 ID
+            metadata: 照片元数据
+            document: 用于向量化的文档文本（描述 + 标签）
+        """
+        if self._collection is None:
+            logger.error("Collection not initialized")
+            return False
+        
+        try:
+            # 将 metadata 转为可存储的格式
+            metadata_stored = {}
+            for key, value in metadata.items():
+                if value is not None:
+                    if isinstance(value, (list, dict)):
+                        metadata_stored[key] = json.dumps(value, ensure_ascii=False)
+                    else:
+                        metadata_stored[key] = str(value)
+            
+            self._collection.upsert(
+                ids=[photo_id],
+                documents=[document],
+                metadatas=[metadata_stored]
+            )
+            
+            logger.info(f"Updated photo {photo_id} in collection")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update photo {photo_id}: {e}")
+            return False
+    
     def search(self, query: str, n_results: int = 20) -> List[Dict[str, Any]]:
         """
         语义搜索照片
