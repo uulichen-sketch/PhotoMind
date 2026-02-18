@@ -110,7 +110,7 @@ class PhotoProcessor:
             
             # 2. AI 分析（最耗时）
             logger.info(f"AI analyzing {photo_id}...")
-            vision_result = await vision_service.analyze_photo(file_path)
+            vision_result = await vision_service.analyze_photo(file_path, metadata)
             
             # 解析评分
             scores_data = vision_result.get("scores", {})
@@ -120,7 +120,8 @@ class PhotoProcessor:
                 "lighting": float(scores_data.get("lighting", 0)),
                 "sharpness": float(scores_data.get("sharpness", 0)),
                 "overall": float(scores_data.get("overall", 0)),
-                "reason": scores_data.get("reason", "")
+                "reason": scores_data.get("reason", ""),
+                "suggestions": scores_data.get("suggestions", []),
             }
             
             # 更新元数据

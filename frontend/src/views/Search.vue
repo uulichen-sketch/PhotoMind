@@ -280,14 +280,9 @@ const getPhotoFileUrl = (photo) => {
 // 图片浏览器数据
 const viewerImages = computed(() => {
   return results.value.map(photo => ({
+    ...photo,
     src: getPhotoFileUrl(photo),
     thumbnail: getPhotoUrl(photo),
-    filename: photo.filename,
-    description: photo.description,
-    datetime: photo.datetime,
-    location: photo.location,
-    camera: photo.camera,
-    scores: photo.scores
   }))
 })
 

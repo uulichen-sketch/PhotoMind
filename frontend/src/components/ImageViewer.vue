@@ -1,22 +1,19 @@
-<template>
+﻿<template>
   <teleport to="body">
     <transition name="viewer-fade">
       <div v-if="visible" class="image-viewer" @click.self="close">
-        <!-- 关闭按钮 -->
-        <button class="viewer-close" @click="close">
-          <span>×</span>
+        <button class="viewer-close" @click="close" aria-label="Close viewer">
+          <span>x</span>
         </button>
 
-        <!-- 顶部信息栏 -->
         <div class="viewer-header">
           <span class="viewer-counter">{{ currentIndex + 1 }} / {{ images.length }}</span>
           <span class="viewer-filename">{{ currentImage?.filename || '' }}</span>
         </div>
 
-        <!-- 工具栏 -->
         <div class="viewer-toolbar">
-          <button 
-            v-for="tool in toolbarTools" 
+          <button
+            v-for="tool in toolbarTools"
             :key="tool.name"
             class="toolbar-btn"
             :title="tool.title"
@@ -26,137 +23,84 @@
           </button>
         </div>
 
-        <!-- 左右切换按钮 -->
-        <button 
-          v-if="images.length > 1" 
-          class="nav-btn nav-prev" 
+        <button
+          v-if="images.length > 1"
+          class="nav-btn nav-prev"
           @click="prev"
           :disabled="currentIndex === 0"
         >
-          <span>‹</span>
+          <span>&lt;</span>
         </button>
-        <button 
-          v-if="images.length > 1" 
-          class="nav-btn nav-next" 
+        <button
+          v-if="images.length > 1"
+          class="nav-btn nav-next"
           @click="next"
           :disabled="currentIndex === images.length - 1"
         >
-          <span>›</span>
+          <span>&gt;</span>
         </button>
 
-        <!-- 图片容器 -->
-        <div 
-          class="viewer-content"
-          @wheel.prevent="handleWheel"
-          @mousedown.prevent="handleMouseDown"
-          @mousemove="handleMouseMove"
-          @mouseup="handleMouseUp"
-          @mouseleave="handleMouseUp"
-        >
-          <img
-            v-if="currentImage"
-            :src="currentImage.src"
-            :alt="currentImage.filename"
-            class="viewer-image"
-            :style="imageStyle"
-            @load="handleImageLoad"
-            @error="handleImageError"
-            draggable="false"
-          />
+        <div class="viewer-body">
+          <div
+            class="viewer-content"
+            @wheel.prevent="handleWheel"
+            @mousedown.prevent="handleMouseDown"
+            @mousemove="handleMouseMove"
+            @mouseup="handleMouseUp"
+            @mouseleave="handleMouseUp"
+          >
+            <img
+              v-if="currentImage"
+              :src="currentImage.src"
+              :alt="currentImage.filename"
+              class="viewer-image"
+              :style="imageStyle"
+              @load="handleImageLoad"
+              @error="handleImageError"
+              draggable="false"
+            />
+          </div>
+
+          <aside v-if="currentImage" class="viewer-side-panel">
+            <div class="panel-section">
+              <h3>Photo Info</h3>
+              <p class="image-desc">{{ currentImage.description || '-' }}</p>
+            </div>
+
+            <div v-if="currentImage.scores" class="panel-section score-section">
+              <div class="score-head">
+                <span class="score-badge" :style="getScoreStyle(currentImage.scores.overall)">
+                  {{ currentImage.scores.overall.toFixed(1) }}
+                </span>
+                <button class="score-detail-btn" @click="showScoreDetail = !showScoreDetail">
+                  {{ showScoreDetail ? 'Hide Score' : 'Show Score' }}
+                </button>
+              </div>
+              <div v-if="showScoreDetail" class="score-detail-panel">
+                <PhotoScore :scores="currentImage.scores" />
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <h3>EXIF</h3>
+              <div class="exif-list">
+                <div v-for="item in exifItems" :key="item.label" class="exif-item">
+                  <span class="exif-label">{{ item.label }}</span>
+                  <span class="exif-value" :title="item.value">{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
 
-        <!-- 缩略图列表 -->
         <div v-if="images.length > 1" class="viewer-thumbnails">
-          <div 
-            v-for="(img, index) in images" 
+          <div
+            v-for="(img, index) in images"
             :key="index"
             :class="['thumb-item', { active: index === currentIndex }]"
             @click="goTo(index)"
           >
             <img :src="img.thumbnail || img.src" :alt="img.filename" />
-          </div>
-        </div>
-
-        <!-- 底部信息 -->
-        <div v-if="currentImage" class="viewer-footer">
-          <div class="footer-content">
-            <!-- 左侧：基本信息和描述 -->
-            <div class="footer-left">
-              <div class="image-info">
-                <span v-if="currentImage.datetime" class="info-item">
-                  📅 {{ formatDate(currentImage.datetime) }}
-                </span>
-                <span v-if="currentImage.location" class="info-item location">
-                  📍 {{ currentImage.location }}
-                </span>
-                <span v-if="currentImage.camera" class="info-item">
-                  📷 {{ currentImage.camera }}
-                </span>
-              </div>
-              <p v-if="currentImage.description" class="image-desc">
-                {{ currentImage.description }}
-              </p>
-            </div>
-            <!-- 右侧：评分 -->
-            <div v-if="currentImage.scores" class="footer-right">
-              <div class="mini-score">
-                <span class="score-badge" :style="getScoreStyle(currentImage.scores.overall)">
-                  {{ currentImage.scores.overall.toFixed(1) }}
-                </span>
-                <button class="score-detail-btn" @click="showScoreDetail = !showScoreDetail">
-                  {{ showScoreDetail ? '隐藏评分' : '查看评分' }}
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- EXIF 详细信息面板 -->
-          <div v-if="hasExifInfo" class="exif-panel">
-            <div class="exif-title" @click="showExifDetail = !showExifDetail">
-              <span>📷 拍摄参数</span>
-              <span class="exif-toggle">{{ showExifDetail ? '▼' : '▶' }}</span>
-            </div>
-            <div v-if="showExifDetail" class="exif-detail">
-              <div class="exif-grid">
-                <div v-if="currentImage.camera" class="exif-item">
-                  <span class="exif-label">相机</span>
-                  <span class="exif-value">{{ currentImage.camera }}</span>
-                </div>
-                <div v-if="currentImage.lens" class="exif-item">
-                  <span class="exif-label">镜头</span>
-                  <span class="exif-value">{{ currentImage.lens }}</span>
-                </div>
-                <div v-if="currentImage.focal_length" class="exif-item">
-                  <span class="exif-label">焦距</span>
-                  <span class="exif-value">{{ currentImage.focal_length }}</span>
-                </div>
-                <div v-if="currentImage.aperture" class="exif-item">
-                  <span class="exif-label">光圈</span>
-                  <span class="exif-value">{{ currentImage.aperture }}</span>
-                </div>
-                <div v-if="currentImage.shutter" class="exif-item">
-                  <span class="exif-label">快门</span>
-                  <span class="exif-value">{{ currentImage.shutter }}</span>
-                </div>
-                <div v-if="currentImage.iso" class="exif-item">
-                  <span class="exif-label">ISO</span>
-                  <span class="exif-value">{{ currentImage.iso }}</span>
-                </div>
-                <div v-if="currentImage.width && currentImage.height" class="exif-item">
-                  <span class="exif-label">分辨率</span>
-                  <span class="exif-value">{{ currentImage.width }} × {{ currentImage.height }}</span>
-                </div>
-                <div v-if="currentImage.file_size" class="exif-item">
-                  <span class="exif-label">文件大小</span>
-                  <span class="exif-value">{{ formatFileSize(currentImage.file_size) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 详细评分面板 -->
-          <div v-if="showScoreDetail && currentImage.scores" class="score-detail-panel">
-            <PhotoScore :scores="currentImage.scores" />
           </div>
         </div>
       </div>
@@ -166,6 +110,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import PhotoScore from './PhotoScore.vue'
 
 const props = defineProps({
@@ -185,71 +130,66 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'change', 'close'])
 
-// 当前索引
 const currentIndex = ref(props.initialIndex)
-
-// 缩放和拖拽状态
 const scale = ref(1)
 const translateX = ref(0)
 const translateY = ref(0)
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
-
-// 评分详情显示状态
 const showScoreDetail = ref(false)
-// EXIF详情显示状态
-const showExifDetail = ref(false)
 
-// 计算当前图片
-const currentImage = computed(() => {
-  return props.images[currentIndex.value] || null
-})
+const currentImage = computed(() => props.images[currentIndex.value] || null)
 
-// 检查是否有EXIF信息
-const hasExifInfo = computed(() => {
-  const img = currentImage.value
-  if (!img) return false
-  return !!(img.camera || img.lens || img.focal_length || img.aperture ||
-            img.shutter || img.iso || (img.width && img.height) || img.file_size)
-})
+const imageStyle = computed(() => ({
+  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
+  cursor: isDragging.value ? 'grabbing' : scale.value > 1 ? 'grab' : 'default',
+  transition: isDragging.value ? 'none' : 'transform 0.25s ease'
+}))
 
-// 图片样式
-const imageStyle = computed(() => {
-  return {
-    transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-    cursor: isDragging.value ? 'grabbing' : scale.value > 1 ? 'grab' : 'default',
-    transition: isDragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-  }
-})
-
-// 工具栏
 const toolbarTools = computed(() => [
-  { name: 'zoomIn', icon: '🔍+', title: '放大', action: zoomIn },
-  { name: 'zoomOut', icon: '🔍-', title: '缩小', action: zoomOut },
-  { name: 'reset', icon: '⟲', title: '重置', action: reset },
-  { name: 'download', icon: '⬇️', title: '下载', action: download },
+  { name: 'zoomIn', icon: '+', title: 'Zoom in', action: zoomIn },
+  { name: 'zoomOut', icon: '-', title: 'Zoom out', action: zoomOut },
+  { name: 'reset', icon: 'o', title: 'Reset', action: reset },
+  { name: 'download', icon: 'v', title: 'Download', action: download }
 ])
 
-// 监听可见性变化
+const exifItems = computed(() => {
+  const img = currentImage.value || {}
+  return [
+    { label: 'Filename', value: img.filename || '-' },
+    { label: 'DateTime', value: formatDate(img.datetime) || '-' },
+    { label: 'Location', value: img.location || '-' },
+    { label: 'GPS', value: img.gps_latitude && img.gps_longitude ? `${img.gps_latitude}, ${img.gps_longitude}` : '-' },
+    { label: 'Camera', value: img.camera || '-' },
+    { label: 'Lens', value: img.lens || '-' },
+    { label: 'ISO', value: stringify(img.iso) },
+    { label: 'Aperture', value: img.aperture || '-' },
+    { label: 'Shutter', value: img.shutter || '-' },
+    { label: 'Focal Length', value: img.focal_length || '-' },
+    { label: 'Size', value: formatFileSize(img.file_size) || '-' },
+    { label: 'Resolution', value: img.width && img.height ? `${img.width} x ${img.height}` : '-' },
+    { label: 'Photo ID', value: img.id || '-' }
+  ]
+})
+
 watch(() => props.visible, (val) => {
   if (val) {
     currentIndex.value = props.initialIndex
     reset()
+    showScoreDetail.value = false
     document.body.style.overflow = 'hidden'
   } else {
     document.body.style.overflow = ''
   }
 })
 
-// 监听 initialIndex 变化
 watch(() => props.initialIndex, (val) => {
   currentIndex.value = val
 })
 
-// 键盘事件处理
 const handleKeydown = (e) => {
   if (!props.visible) return
-  
+
   switch (e.key) {
     case 'Escape':
       close()
@@ -273,7 +213,6 @@ const handleKeydown = (e) => {
   }
 }
 
-// 挂载时添加键盘监听
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
@@ -283,7 +222,6 @@ onUnmounted(() => {
   document.body.style.overflow = ''
 })
 
-// 方法
 const close = () => {
   emit('update:visible', false)
   emit('close')
@@ -363,9 +301,7 @@ const handleMouseUp = () => {
   isDragging.value = false
 }
 
-const handleImageLoad = () => {
-  // 图片加载完成
-}
+const handleImageLoad = () => {}
 
 const handleImageError = () => {
   ElMessage.error('图片加载失败')
@@ -396,7 +332,7 @@ const getScoreStyle = (score) => {
   if (score >= 4.5) color = '#10b981'
   else if (score >= 4.0) color = '#6366f1'
   else if (score >= 3.0) color = '#f59e0b'
-  
+
   return {
     background: color,
     color: 'white'
@@ -408,6 +344,11 @@ const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const stringify = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
 }
 </script>
 
@@ -422,67 +363,56 @@ const formatFileSize = (bytes) => {
   backdrop-filter: blur(10px);
 }
 
-/* 关闭按钮 */
 .viewer-close {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   color: white;
-  font-size: 32px;
+  font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 10;
+  z-index: 30;
 }
 
-.viewer-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
-}
-
-/* 顶部信息栏 */
 .viewer-header {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  padding: 20px 80px 20px 20px;
+  padding: 16px 72px 16px 16px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
-  z-index: 5;
+  gap: 12px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent);
+  z-index: 20;
 }
 
 .viewer-counter {
   color: white;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
+  font-size: 13px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
 }
 
 .viewer-filename {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 14px;
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 工具栏 */
 .viewer-toolbar {
   position: absolute;
-  top: 20px;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -490,77 +420,44 @@ const formatFileSize = (bytes) => {
   padding: 8px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  backdrop-filter: blur(10px);
-  z-index: 10;
+  z-index: 20;
 }
 
 .toolbar-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: none;
   background: transparent;
   color: white;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
 }
 
 .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .toolbar-icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 
-/* 导航按钮 */
-.nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 60px;
-  height: 100px;
-  border: none;
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  font-size: 48px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 10;
-  border-radius: 8px;
-}
-
-.nav-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.nav-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.nav-prev {
-  left: 20px;
-}
-
-.nav-next {
-  right: 20px;
-}
-
-/* 图片容器 */
-.viewer-content {
+.viewer-body {
   flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  padding: 72px 16px 12px;
+}
+
+.viewer-content {
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 80px 100px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .viewer-image {
@@ -571,24 +468,139 @@ const formatFileSize = (bytes) => {
   -webkit-user-drag: none;
 }
 
-/* 缩略图列表 */
+.viewer-side-panel {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px;
+}
+
+.panel-section {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.panel-section h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.image-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.score-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.score-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.score-detail-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.exif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exif-item {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+}
+
+.exif-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.exif-value {
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+}
+
+.score-detail-panel {
+  margin-top: 8px;
+}
+
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 82px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  border-radius: 10px;
+  z-index: 20;
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.nav-prev {
+  left: 16px;
+}
+
+.nav-next {
+  right: 16px;
+}
+
 .viewer-thumbnails {
   display: flex;
   gap: 8px;
-  padding: 16px 20px;
+  padding: 12px 16px 16px;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   overflow-x: auto;
 }
 
 .thumb-item {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
@@ -598,223 +610,50 @@ const formatFileSize = (bytes) => {
   object-fit: cover;
 }
 
-.thumb-item:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
 .thumb-item.active {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-color);
 }
 
-/* 底部信息 */
-.viewer-footer {
-  padding: 16px 20px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-}
-
-.footer-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-}
-
-.footer-left {
-  flex: 1;
-}
-
-.footer-right {
-  flex-shrink: 0;
-}
-
-.image-info {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.info-item {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
-}
-
-.image-desc {
-  color: white;
-  font-size: 14px;
-  text-align: center;
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* 迷你评分 */
-.mini-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.score-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.score-detail-btn {
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: white;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.score-detail-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* EXIF 面板 */
-.exif-panel {
-  margin-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 12px;
-}
-
-.exif-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
-  padding: 4px 0;
-}
-
-.exif-title:hover {
-  color: white;
-}
-
-.exif-toggle {
-  font-size: 10px;
-  transition: transform 0.2s ease;
-}
-
-.exif-detail {
-  margin-top: 12px;
-  animation: slide-up 0.3s ease;
-}
-
-.exif-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.exif-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.exif-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-}
-
-.exif-value {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-}
-
-.location {
-  color: #60a5fa !important;
-}
-
-/* 评分详情面板 */
-.score-detail-panel {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  animation: slide-up 0.3s ease;
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 过渡动画 */
 .viewer-fade-enter-active,
 .viewer-fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .viewer-fade-enter-from,
 .viewer-fade-leave-to {
   opacity: 0;
-  transform: scale(0.95);
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .viewer-content {
-    padding: 60px 20px;
+@media (max-width: 1024px) {
+  .viewer-body {
+    grid-template-columns: 1fr;
+    padding-top: 64px;
+    gap: 10px;
+  }
+
+  .viewer-side-panel {
+    max-height: 38vh;
   }
 
   .nav-btn {
-    width: 40px;
-    height: 60px;
-    font-size: 32px;
+    width: 42px;
+    height: 66px;
+    font-size: 24px;
   }
+}
 
-  .nav-prev {
-    left: 10px;
-  }
-
-  .nav-next {
-    right: 10px;
-  }
-
+@media (max-width: 768px) {
   .viewer-toolbar {
-    bottom: 100px;
+    bottom: 84px;
     top: auto;
   }
 
-  .viewer-thumbnails {
-    padding: 10px;
+  .viewer-content {
+    min-height: 320px;
   }
 
-  .thumb-item {
-    width: 50px;
-    height: 50px;
-  }
-
-  .image-info {
-    gap: 12px;
-  }
-
-  .info-item {
-    font-size: 12px;
+  .exif-item {
+    grid-template-columns: 88px 1fr;
   }
 }
 </style>

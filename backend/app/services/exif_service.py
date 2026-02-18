@@ -117,7 +117,13 @@ class EXIFService:
                         gps_info = exif["GPSInfo"]
                         lat = EXIFService._get_gps_value(gps_info, 2)
                         lon = EXIFService._get_gps_value(gps_info, 4)
-                        if lat and lon:
+                        lat_ref = gps_info.get(1)
+                        lon_ref = gps_info.get(3)
+                        if lat is not None and str(lat_ref).upper() == "S":
+                            lat = -lat
+                        if lon is not None and str(lon_ref).upper() == "W":
+                            lon = -lon
+                        if lat is not None and lon is not None:
                             result["location"] = f"{lat:.4f}, {lon:.4f}"
                             result["gps_latitude"] = lat
                             result["gps_longitude"] = lon
@@ -148,10 +154,32 @@ class EXIFService:
         """从 GPS 信息中提取经纬度"""
         if key not in gps_info:
             return None
-        
+
         value = gps_info[key]
-        if hasattr(value, 'numerator'):
+
+        # Decimal degrees (already a float/int)
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        # DMS tuple/list, e.g. (40.0, 3.0, 7.152099)
+        if isinstance(value, (tuple, list)) and len(value) >= 3:
+            def _to_float(v):
+                if hasattr(v, 'numerator') and hasattr(v, 'denominator') and v.denominator:
+                    return v.numerator / v.denominator
+                return float(v)
+
+            try:
+                degrees = _to_float(value[0])
+                minutes = _to_float(value[1])
+                seconds = _to_float(value[2])
+                return degrees + minutes / 60.0 + seconds / 3600.0
+            except Exception:
+                return None
+
+        # Rational value
+        if hasattr(value, 'numerator') and hasattr(value, 'denominator') and value.denominator:
             return value.numerator / value.denominator
+
         return None
     
     @staticmethod

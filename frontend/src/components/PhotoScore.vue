@@ -1,6 +1,5 @@
-<template>
+﻿<template>
   <div class="photo-score">
-    <!-- 总体评分 -->
     <div class="overall-score">
       <div class="score-circle" :style="circleStyle">
         <span class="score-value">{{ overallScore }}</span>
@@ -9,7 +8,6 @@
       <div class="score-label">综合评分</div>
     </div>
 
-    <!-- 分项评分 -->
     <div class="score-details">
       <div v-for="item in scoreItems" :key="item.key" class="score-item">
         <div class="score-item-header">
@@ -18,21 +16,32 @@
           <span class="item-value">{{ getScore(item.key) }}</span>
         </div>
         <div class="score-bar">
-          <div 
-            class="score-bar-fill" 
+          <div
+            class="score-bar-fill"
             :style="{ width: `${(getScore(item.key) / 5) * 100}%`, background: item.color }"
           />
         </div>
       </div>
     </div>
 
-    <!-- 评分理由 -->
     <div v-if="scores?.reason" class="score-reason">
       <div class="reason-header">
-        <span class="reason-icon">💡</span>
+        <span class="reason-icon">📝</span>
         <span>评分理由</span>
       </div>
       <p class="reason-text">{{ scores.reason }}</p>
+    </div>
+
+    <div v-if="scoreSuggestions.length" class="score-suggestions">
+      <div class="reason-header">
+        <span class="reason-icon">📷</span>
+        <span>拍摄建议</span>
+      </div>
+      <ul class="suggestion-list">
+        <li v-for="(item, idx) in scoreSuggestions" :key="`${idx}-${item}`">
+          {{ item }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -47,7 +56,6 @@ const props = defineProps({
   }
 })
 
-// 评分项配置
 const scoreItems = [
   { key: 'composition', name: '构图', icon: '📐', color: 'linear-gradient(90deg, #6366f1, #8b5cf6)' },
   { key: 'color', name: '色彩', icon: '🎨', color: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
@@ -55,33 +63,35 @@ const scoreItems = [
   { key: 'sharpness', name: '清晰度', icon: '🔍', color: 'linear-gradient(90deg, #10b981, #34d399)' }
 ]
 
-// 获取分数
 const getScore = (key) => {
   return props.scores?.[key] || 0
 }
 
-// 总体评分
 const overallScore = computed(() => {
   return props.scores?.overall?.toFixed(1) || '0.0'
 })
 
-// 评分圆环样式
+const scoreSuggestions = computed(() => {
+  const suggestions = props.scores?.suggestions
+  if (!Array.isArray(suggestions)) return []
+  return suggestions.filter(Boolean)
+})
+
 const circleStyle = computed(() => {
   const score = parseFloat(overallScore.value)
   const percentage = (score / 5) * 100
   const color = getScoreColor(score)
-  
+
   return {
     background: `conic-gradient(${color} ${percentage}%, #e2e8f0 ${percentage}%)`
   }
 })
 
-// 根据分数获取颜色
 const getScoreColor = (score) => {
-  if (score >= 4.5) return '#10b981' // 优秀 - 绿色
-  if (score >= 4.0) return '#6366f1' // 良好 - 紫色
-  if (score >= 3.0) return '#f59e0b' // 一般 - 橙色
-  return '#ef4444' // 较差 - 红色
+  if (score >= 4.5) return '#10b981'
+  if (score >= 4.0) return '#6366f1'
+  if (score >= 3.0) return '#f59e0b'
+  return '#ef4444'
 }
 </script>
 
@@ -92,7 +102,6 @@ const getScoreColor = (score) => {
   padding: 20px;
 }
 
-/* 总体评分 */
 .overall-score {
   display: flex;
   flex-direction: column;
@@ -142,7 +151,6 @@ const getScoreColor = (score) => {
   font-weight: 500;
 }
 
-/* 分项评分 */
 .score-details {
   display: flex;
   flex-direction: column;
@@ -190,7 +198,6 @@ const getScoreColor = (score) => {
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 评分理由 */
 .score-reason {
   margin-top: 20px;
   padding-top: 20px;
@@ -218,7 +225,23 @@ const getScoreColor = (score) => {
   margin: 0;
 }
 
-/* 小尺寸模式 */
+.score-suggestions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.suggestion-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
 .photo-score.compact {
   padding: 16px;
 }
@@ -247,7 +270,6 @@ const getScoreColor = (score) => {
   font-size: 12px;
 }
 
-/* 迷你模式 - 用于图片卡片 */
 .photo-score.mini {
   padding: 0;
   background: transparent;
@@ -285,7 +307,8 @@ const getScoreColor = (score) => {
 }
 
 .photo-score.mini .score-details,
-.photo-score.mini .score-reason {
+.photo-score.mini .score-reason,
+.photo-score.mini .score-suggestions {
   display: none;
 }
 </style>

@@ -3,19 +3,60 @@ import os
 import uuid
 import shutil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from app.models import PhotoMetadata, PhotoScores
 from app.services.vector_service import vector_service
 from app.services.exif_service import EXIFService
 from app.services.photo_processor import photo_processor
+from app.services.geocoding_service import geocoding_service
 from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/photos", tags=["photos"])
+
+
+def _to_float(value: Optional[object]) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _needs_reverse_geocode(location: Optional[str]) -> bool:
+    if not location:
+        return True
+    return geocoding_service.format_coordinate(location) is not None
+
+
+async def _reverse_geocode_and_persist(photo: dict) -> Tuple[dict, bool]:
+    lat = _to_float(photo.get("gps_latitude"))
+    lon = _to_float(photo.get("gps_longitude"))
+    if lat is None or lon is None:
+        return photo, False
+    if not geocoding_service.is_enabled:
+        return photo, False
+    if not _needs_reverse_geocode(photo.get("location")):
+        return photo, False
+
+    address = await geocoding_service.reverse_geocode(lat, lon)
+    if not address:
+        return photo, False
+
+    photo["gps_latitude"] = lat
+    photo["gps_longitude"] = lon
+    photo["location"] = address
+
+    tags = photo.get("tags") if isinstance(photo.get("tags"), list) else []
+    description = photo.get("description") or ""
+    document = f"{description} {' '.join(tags)} {address}".strip()
+    vector_service.update_photo(photo.get("id"), photo, document)
+    return photo, True
 
 
 @router.get("/", response_model=List[PhotoMetadata])
@@ -71,12 +112,16 @@ async def list_photos(
             if status and status != "all" and photo_status != status:
                 continue
             
+            photo, _ = await _reverse_geocode_and_persist(photo)
+
             photo_data = PhotoMetadata(
                 id=photo.get('id', ''),
                 file_path=photo.get('file_path', ''),
                 filename=photo.get('filename', ''),
                 datetime=photo.get('datetime'),
                 location=photo.get('location'),
+                gps_latitude=_to_float(photo.get('gps_latitude')),
+                gps_longitude=_to_float(photo.get('gps_longitude')),
                 camera=photo.get('camera'),
                 lens=photo.get('lens'),
                 iso=int(photo.get('iso')) if photo.get('iso') else None,
@@ -225,6 +270,7 @@ async def get_photo(photo_id: str):
         raise HTTPException(status_code=404, detail="照片不存在")
     
     # 解析 scores
+    photo, _ = await _reverse_geocode_and_persist(photo)
     scores = photo.get('scores')
     if isinstance(scores, str):
         try:
@@ -247,6 +293,8 @@ async def get_photo(photo_id: str):
         filename=photo.get('filename', ''),
         datetime=photo.get('datetime'),
         location=photo.get('location'),
+        gps_latitude=_to_float(photo.get('gps_latitude')),
+        gps_longitude=_to_float(photo.get('gps_longitude')),
         camera=photo.get('camera'),
         lens=photo.get('lens'),
         iso=int(photo.get('iso')) if photo.get('iso') else None,
@@ -260,6 +308,36 @@ async def get_photo(photo_id: str):
         width=int(photo.get('width')) if photo.get('width') else None,
         height=int(photo.get('height')) if photo.get('height') else None,
     )
+
+
+@router.post("/backfill-locations")
+async def backfill_locations(limit: int = 10000):
+    """
+    鎵归噺灏?GPS 鍧愭爣杞崲涓洪珮寰峰湴鍧€骞跺啓鍥炲厓鏁版嵁銆?
+    浠呭鐞嗘湁 GPS 涓?location 涓虹┖鎴栦粛鏄潗鏍囧瓧绗︿覆鐨勭収鐗囥€?
+    """
+    photos = vector_service.list_photos(limit=limit, offset=0)
+    updated = 0
+    skipped = 0
+
+    for photo in photos:
+        try:
+            _, changed = await _reverse_geocode_and_persist(photo)
+            if changed:
+                updated += 1
+            else:
+                skipped += 1
+        except Exception as e:
+            logger.warning(f"Backfill location failed for {photo.get('id')}: {e}")
+            skipped += 1
+
+    return {
+        "status": "ok",
+        "updated": updated,
+        "skipped": skipped,
+        "total": len(photos),
+        "geocoding_enabled": geocoding_service.is_enabled
+    }
 
 
 @router.get("/{photo_id}/thumbnail")

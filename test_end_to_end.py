@@ -74,12 +74,12 @@ def main():
     
     # 2. 照片列表测试
     print("【照片管理测试】")
-    success, _ = test_endpoint("GET", "/api/photo/")
+    success, _ = test_endpoint("GET", "/api/photos/")
     if success: passed += 1
     else: failed += 1
     
     # 获取不存在的照片应该返回 404
-    success, _ = test_endpoint("GET", "/api/photo/nonexistent", expected_status=404)
+    success, _ = test_endpoint("GET", "/api/photos/nonexistent", expected_status=404)
     if success: passed += 1
     else: failed += 1
     print()

@@ -121,7 +121,7 @@ class ImportStreamManager:
                 "status": "正在分析照片内容..."
             })
             
-            vision_result = await vision_service.analyze_photo(filepath)
+            vision_result = await vision_service.analyze_photo(filepath, exif_data)
             
             # 解析评分
             scores_data = vision_result.get("scores", {})
@@ -131,7 +131,8 @@ class ImportStreamManager:
                 lighting=float(scores_data.get("lighting", 0)),
                 sharpness=float(scores_data.get("sharpness", 0)),
                 overall=float(scores_data.get("overall", 0)),
-                reason=scores_data.get("reason", "")
+                reason=scores_data.get("reason", ""),
+                suggestions=scores_data.get("suggestions", []),
             )
             
             await self.send_event("ai_complete", {

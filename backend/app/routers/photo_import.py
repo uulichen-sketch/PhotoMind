@@ -63,7 +63,7 @@ async def process_import(task_id: str, folder_path: str):
                         exif_data["location"] = address
                 
                 # 3. 调用 GLM-4V 识别
-                vision_result = await vision_service.analyze_photo(filepath)
+                vision_result = await vision_service.analyze_photo(filepath, exif_data)
                 
                 # 3. 组装元数据
                 photo_id = f"photo_{uuid.uuid4().hex[:12]}"
@@ -194,7 +194,7 @@ async def process_uploaded_files(task_id: str, file_paths: List[str]):
                         exif_data["location"] = address
                 
                 # 3. 调用 GLM-4V 识别
-                vision_result = await vision_service.analyze_photo(filepath)
+                vision_result = await vision_service.analyze_photo(filepath, exif_data)
                 
                 # 4. 组装元数据
                 photo_id = f"photo_{uuid.uuid4().hex[:12]}"

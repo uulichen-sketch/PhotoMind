@@ -21,6 +21,7 @@ class PhotoScores(BaseModel):
     sharpness: float = Field(0.0, description="清晰度评分 (1-5)", ge=0, le=5)
     overall: float = Field(0.0, description="整体评分 (1-5)", ge=0, le=5)
     reason: Optional[str] = Field(None, description="评分理由")
+    suggestions: List[str] = Field(default_factory=list, description="拍摄改进建议")
 
 
 class PhotoMetadata(BaseModel):
@@ -32,6 +33,8 @@ class PhotoMetadata(BaseModel):
     # EXIF 信息
     datetime: Optional[str] = Field(None, description="拍摄时间")
     location: Optional[str] = Field(None, description="拍摄地点")
+    gps_latitude: Optional[float] = Field(None, description="GPS 纬度")
+    gps_longitude: Optional[float] = Field(None, description="GPS 经度")
     camera: Optional[str] = Field(None, description="相机型号")
     lens: Optional[str] = Field(None, description="镜头信息")
     iso: Optional[int] = Field(None, description="ISO")
@@ -76,7 +79,7 @@ class PhotoMetadata(BaseModel):
 
 class SearchRequest(BaseModel):
     """搜索请求"""
-    query: str = Field(..., description="搜索关键词或语音转文字结果")
+    query: str = Field(..., min_length=1, description="搜索关键词或语音转文字结果")
 
 
 class VoiceSearchRequest(BaseModel):

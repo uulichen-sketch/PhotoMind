@@ -1,197 +1,55 @@
-<template>
+﻿<template>
   <div class="detail-page">
-    <el-button class="back-btn" text @click="$router.back()">
-      <span class="back-icon">←</span>
-      返回
-    </el-button>
+    <div class="detail-header">
+      <el-button class="back-btn" text @click="$router.back()">
+        <span class="back-icon">&lt;</span>
+        返回
+      </el-button>
+      <div class="header-actions" v-if="photo">
+        <el-button @click="downloadPhoto">下载原图</el-button>
+        <el-button type="danger" plain @click="deletePhoto">删除照片</el-button>
+      </div>
+    </div>
 
     <div v-if="photo" class="detail-content">
-      <!-- 照片展示区 -->
-      <div class="photo-section">
-        <div class="photo-container" @click="viewerVisible = true">
-          <img :src="photoUrl" class="main-photo" :alt="photo.description" />
-          <div class="photo-overlay">
-            <span class="zoom-icon">🔍</span>
-            <span>点击查看大图</span>
+      <section class="photo-stage" @click="viewerVisible = true">
+        <img :src="photoUrl" class="main-photo" :alt="photo.description || photo.filename" />
+        <div class="stage-tip">点击查看大图</div>
+      </section>
+
+      <aside class="info-panel">
+        <div v-if="photo.scores" class="panel-section">
+          <h3>AI 评分</h3>
+          <PhotoScore :scores="photo.scores" />
+        </div>
+
+        <div class="panel-section">
+          <h3>照片描述</h3>
+          <p class="description">{{ photo.description || '-' }}</p>
+        </div>
+
+        <div class="panel-section">
+          <h3>标签</h3>
+          <div class="tags">
+            <el-tag v-for="tag in (photo.tags || [])" :key="tag" size="small">{{ tag }}</el-tag>
+            <span v-if="!photo.tags?.length" class="empty">-</span>
           </div>
         </div>
-        
-        <!-- 照片操作 -->
-        <div class="photo-actions">
-          <el-button size="large" @click="downloadPhoto">
-            <span class="action-icon">⬇️</span>
-            下载原图
-          </el-button>
-          <el-button size="large" type="danger" plain @click="deletePhoto">
-            <span class="action-icon">🗑️</span>
-            删除
-          </el-button>
+
+        <div class="panel-section">
+          <h3>EXIF 与位置信息</h3>
+          <div class="exif-list">
+            <div v-for="item in exifItems" :key="item.label" class="exif-item">
+              <span class="exif-label">{{ item.label }}</span>
+              <span class="exif-value" :title="item.value">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <!-- 信息侧边栏 -->
-      <div class="info-section">
-        <el-card class="info-card">
-          <!-- AI 评分 -->
-          <div v-if="photo.scores" class="info-block">
-            <PhotoScore :scores="photo.scores" />
-          </div>
-
-          <el-divider v-if="photo.scores" />
-
-          <!-- AI 描述 -->
-          <div class="info-block">
-            <div class="block-header">
-              <div class="block-icon ai-icon">🤖</div>
-              <h3>AI 描述</h3>
-            </div>
-            <p class="ai-description">{{ photo.description || '暂无描述' }}</p>
-          </div>
-
-          <el-divider />
-
-          <!-- 标签 -->
-          <div class="info-block">
-            <div class="block-header">
-              <div class="block-icon tag-icon">🏷️</div>
-              <h3>标签</h3>
-            </div>
-            <div class="tags-list">
-              <el-tag 
-                v-for="tag in (photo.tags || [])" 
-                :key="tag"
-                class="photo-tag"
-                effect="dark"
-                round
-              >
-                {{ tag }}
-              </el-tag>
-              <span v-if="!photo.tags?.length" class="no-data">暂无标签</span>
-            </div>
-          </div>
-
-          <el-divider />
-
-          <!-- 拍摄参数 -->
-          <div class="info-block">
-            <div class="block-header">
-              <div class="block-icon camera-icon">📷</div>
-              <h3>拍摄参数</h3>
-            </div>
-            <div class="params-grid">
-              <div class="param-item">
-                <span class="param-icon">📐</span>
-                <span class="param-label">ISO</span>
-                <span class="param-value">{{ photo.iso || '-' }}</span>
-              </div>
-              <div class="param-item">
-                <span class="param-icon">🔍</span>
-                <span class="param-label">光圈</span>
-                <span class="param-value">{{ photo.aperture || '-' }}</span>
-              </div>
-              <div class="param-item">
-                <span class="param-icon">⏱️</span>
-                <span class="param-label">快门</span>
-                <span class="param-value">{{ photo.shutter || '-' }}</span>
-              </div>
-              <div class="param-item">
-                <span class="param-icon">📏</span>
-                <span class="param-label">焦距</span>
-                <span class="param-value">{{ photo.focal_length || '-' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <el-divider />
-
-          <!-- AI 情感/氛围 -->
-          <div v-if="photo.mood || photo.subjects" class="info-block">
-            <div class="block-header">
-              <div class="block-icon mood-icon">✨</div>
-              <h3>AI 识别</h3>
-            </div>
-            <div class="mood-content">
-              <div v-if="photo.mood" class="mood-item">
-                <span class="mood-label">氛围:</span>
-                <span class="mood-value">{{ photo.mood }}</span>
-              </div>
-              <div v-if="photo.subjects" class="mood-item">
-                <span class="mood-label">主体:</span>
-                <span class="mood-value">{{ photo.subjects }}</span>
-              </div>
-            </div>
-          </div>
-
-          <el-divider v-if="photo.mood || photo.subjects" />
-
-          <!-- 元数据信息 -->
-          <div class="info-block">
-            <div class="block-header">
-              <div class="block-icon meta-icon">📋</div>
-              <h3>EXIF 信息</h3>
-            </div>
-            <div class="meta-list">
-              <div class="meta-item">
-                <span class="meta-label">文件名</span>
-                <span class="meta-value" :title="photo.filename">{{ photo.filename }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">拍摄时间</span>
-                <span class="meta-value">{{ formatDate(photo.datetime) || '未知' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">拍摄地点</span>
-                <span class="meta-value">{{ photo.location || '未知' }}</span>
-              </div>
-              <div v-if="photo.gps_latitude && photo.gps_longitude" class="meta-item">
-                <span class="meta-label">GPS 坐标</span>
-                <span class="meta-value">{{ photo.gps_latitude }}, {{ photo.gps_longitude }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">相机品牌</span>
-                <span class="meta-value">{{ photo.camera || '未知' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">镜头信息</span>
-                <span class="meta-value">{{ photo.lens || '未知' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">ISO 感光度</span>
-                <span class="meta-value">{{ photo.iso || '-' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">光圈值</span>
-                <span class="meta-value">{{ photo.aperture || '-' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">快门速度</span>
-                <span class="meta-value">{{ photo.shutter || '-' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">焦距</span>
-                <span class="meta-value">{{ photo.focal_length || '-' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">文件大小</span>
-                <span class="meta-value">{{ formatSize(photo.file_size) }}</span>
-              </div>
-              <div v-if="photo.width && photo.height" class="meta-item">
-                <span class="meta-label">分辨率</span>
-                <span class="meta-value">{{ photo.width }} × {{ photo.height }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">照片 ID</span>
-                <span class="meta-value id-value">{{ photo.id }}</span>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </div>
+      </aside>
     </div>
 
     <el-empty v-else description="照片不存在" :image-size="200" />
 
-    <!-- 图片浏览器 -->
     <ImageViewer
       v-model:visible="viewerVisible"
       :images="viewerImages"
@@ -213,24 +71,37 @@ const router = useRouter()
 const API_BASE = 'http://localhost:8000'
 
 const photo = ref(null)
-const loading = ref(true)
 const viewerVisible = ref(false)
 
 const photoId = computed(() => route.params.id)
 const photoUrl = computed(() => `${API_BASE}/api/photos/${photoId.value}/file`)
 
-// 图片浏览器数据
 const viewerImages = computed(() => {
   if (!photo.value) return []
   return [{
+    ...photo.value,
     src: photoUrl.value,
     thumbnail: photoUrl.value,
-    filename: photo.value.filename,
-    description: photo.value.description,
-    datetime: photo.value.datetime,
-    location: photo.value.location,
-    camera: photo.value.camera
   }]
+})
+
+const exifItems = computed(() => {
+  const p = photo.value || {}
+  return [
+    { label: '文件名', value: p.filename || '-' },
+    { label: '拍摄时间', value: formatDate(p.datetime) || '-' },
+    { label: '拍摄地点', value: p.location || '-' },
+    { label: 'GPS', value: p.gps_latitude && p.gps_longitude ? `${p.gps_latitude}, ${p.gps_longitude}` : '-' },
+    { label: '相机', value: p.camera || '-' },
+    { label: '镜头', value: p.lens || '-' },
+    { label: 'ISO', value: stringify(p.iso) },
+    { label: '光圈', value: p.aperture || '-' },
+    { label: '快门', value: p.shutter || '-' },
+    { label: '焦距', value: p.focal_length || '-' },
+    { label: '文件大小', value: formatSize(p.file_size) },
+    { label: '分辨率', value: p.width && p.height ? `${p.width} x ${p.height}` : '-' },
+    { label: '照片 ID', value: p.id || '-' },
+  ]
 })
 
 const formatDate = (dateStr) => {
@@ -246,10 +117,15 @@ const formatDate = (dateStr) => {
 }
 
 const formatSize = (bytes) => {
-  if (!bytes) return '未知'
+  if (!bytes) return '-'
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const stringify = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return String(value)
 }
 
 const loadPhoto = async () => {
@@ -258,8 +134,6 @@ const loadPhoto = async () => {
     photo.value = res.data
   } catch (e) {
     ElMessage.error('加载照片失败')
-  } finally {
-    loading.value = false
   }
 }
 
@@ -278,7 +152,7 @@ const deletePhoto = async () => {
         type: 'warning',
       }
     )
-    
+
     await axios.delete(`${API_BASE}/api/photos/${photoId.value}`)
     ElMessage.success('删除成功')
     router.push('/')
@@ -296,313 +170,167 @@ onMounted(() => {
 
 <style scoped>
 .detail-page {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
 }
 
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .back-btn {
-  margin-bottom: 24px;
   font-size: 16px;
-  padding: 8px 16px;
 }
 
 .back-icon {
   margin-right: 4px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .detail-content {
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 32px;
+  grid-template-columns: 1fr 380px;
+  gap: 18px;
+  min-height: calc(100vh - 180px);
 }
 
-/* 照片区域 */
-.photo-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.photo-container {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: var(--shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 500px;
+.photo-stage {
   position: relative;
-  cursor: zoom-in;
+  border-radius: 14px;
+  background: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.16);
   overflow: hidden;
-}
-
-.photo-container:hover .photo-overlay {
-  opacity: 1;
-}
-
-.photo-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: white;
-  font-size: 16px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: var(--radius-lg);
-}
-
-.zoom-icon {
-  font-size: 48px;
+  cursor: zoom-in;
+  min-height: 520px;
 }
 
 .main-photo {
   max-width: 100%;
-  max-height: 70vh;
-  border-radius: var(--radius);
+  max-height: 80vh;
   object-fit: contain;
 }
 
-.photo-actions {
-  display: flex;
-  gap: 12px;
+.stage-tip {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(2, 6, 23, 0.66);
 }
 
-.action-icon {
-  margin-right: 6px;
-}
-
-/* 信息区域 */
-.info-section {
+.info-panel {
   position: sticky;
-  top: 20px;
+  top: 18px;
   align-self: flex-start;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px;
 }
 
-.info-card {
-  border-radius: var(--radius-lg) !important;
+.panel-section {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.info-block {
-  padding: 4px 0;
+.panel-section:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
-.block-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+.panel-section h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.95);
 }
 
-.block-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.ai-icon {
-  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
-}
-
-.tag-icon {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24);
-}
-
-.camera-icon {
-  background: linear-gradient(135deg, #06b6d4, #22d3ee);
-}
-
-.meta-icon {
-  background: linear-gradient(135deg, #10b981, #34d399);
-}
-
-.block-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
+.description {
   margin: 0;
+  line-height: 1.6;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
 }
 
-/* AI 描述 */
-.ai-description {
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text-secondary);
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(167, 139, 250, 0.05));
-  border-radius: 10px;
-  border-left: 3px solid #8b5cf6;
-}
-
-/* 标签 */
-.tags-list {
+.tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.photo-tag {
-  font-size: 13px !important;
-  padding: 6px 14px !important;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
-  border: none !important;
+.empty {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
 }
 
-.no-data {
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-/* 参数网格 */
-.params-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.param-item {
-  background: var(--bg-color);
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-  transition: var(--transition);
-}
-
-.param-item:hover {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(34, 211, 238, 0.1));
-  transform: translateY(-2px);
-}
-
-.param-icon {
-  font-size: 20px;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.param-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: block;
-}
-
-.param-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--primary-color);
-  display: block;
-  margin-top: 2px;
-}
-
-/* 元数据列表 */
-.meta-list {
+.exif-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.meta-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--border-color);
-}
-
-.meta-item:last-child {
-  border-bottom: none;
-}
-
-.meta-label {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.meta-value {
-  font-size: 14px;
-  color: var(--text-primary);
-  font-weight: 500;
-  max-width: 60%;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.id-value {
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* AI 情感 */
-.mood-icon {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24);
-}
-
-.mood-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mood-item {
-  display: flex;
   gap: 8px;
-  align-items: center;
 }
 
-.mood-label {
-  font-size: 14px;
-  color: var(--text-muted);
-  min-width: 50px;
+.exif-item {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
+  align-items: start;
 }
 
-.mood-value {
-  font-size: 14px;
-  color: var(--text-primary);
-  font-weight: 500;
-  padding: 4px 12px;
-  background: rgba(245, 158, 11, 0.1);
-  border-radius: 6px;
+.exif-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.58);
 }
 
-/* 响应式 */
+.exif-value {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+  word-break: break-word;
+}
+
 @media (max-width: 1024px) {
   .detail-content {
     grid-template-columns: 1fr;
   }
-  
-  .info-section {
-    position: static;
+
+  .photo-stage {
+    min-height: 360px;
   }
-  
-  .photo-container {
-    min-height: auto;
+
+  .info-panel {
+    position: static;
+    max-height: none;
   }
 }
 
 @media (max-width: 768px) {
-  .photo-actions {
+  .detail-header {
     flex-direction: column;
+    align-items: stretch;
   }
-  
-  .photo-actions .el-button {
+
+  .header-actions {
     width: 100%;
   }
-  
-  .params-grid {
-    grid-template-columns: repeat(2, 1fr);
+
+  .header-actions .el-button {
+    flex: 1;
   }
 }
 </style>
