@@ -149,11 +149,23 @@ class PhotoProcessor:
             await asyncio.sleep(0.5)
             
         except Exception as e:
-            logger.error(f"Failed to process photo {photo_id}: {e}")
+            logger.error(f"Failed to process photo {photo_id}: {e}", exc_info=True)
             self._stats["failed"] += 1
             # 标记为失败，但保留照片
             metadata["ai_error"] = str(e)
             metadata["ai_processed"] = False
+            
+            # 将失败状态保存到向量库
+            try:
+                # 构建文档文本用于向量化
+                document = f"{metadata.get('filename', '')} {metadata.get('datetime', '')}"
+                if metadata.get("location"):
+                    document += f" {metadata['location']}"
+                
+                vector_service.add_photo(photo_id, metadata, document)
+                logger.info(f"Saved failed status for photo {photo_id}")
+            except Exception as save_error:
+                logger.error(f"Failed to save error status for {photo_id}: {save_error}")
     
     def get_stats(self) -> dict:
         """获取处理统计"""

@@ -9,8 +9,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GLM_API_KEY=${GLM_API_KEY}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY}
+      - AMAP_API_KEY=${AMAP_API_KEY}
       - CHROMA_PERSIST_DIR=/app/data/chroma
+      - DATA_DIR=/app/data
+      - PHOTOS_DIR=/app/data/photos
     volumes:
       - ./backend/data:/app/data
       - ./backend/models:/app/models

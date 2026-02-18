@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
-from app.models import PhotoMetadata
+from app.models import PhotoMetadata, PhotoScores
 from app.services.vector_service import vector_service
 from app.services.exif_service import EXIFService
 from app.services.photo_processor import photo_processor
@@ -44,6 +44,14 @@ async def list_photos(
                     import json
                     scores = json.loads(scores)
                 except:
+                    scores = None
+            
+            # 将 dict 转换为 PhotoScores 对象
+            if isinstance(scores, dict):
+                try:
+                    scores = PhotoScores(**scores)
+                except Exception as e:
+                    logger.warning(f"Failed to parse scores for {photo.get('id')}: {e}")
                     scores = None
             
             # 确定状态
@@ -219,6 +227,14 @@ async def get_photo(photo_id: str):
             import json
             scores = json.loads(scores)
         except:
+            scores = None
+    
+    # 将 dict 转换为 PhotoScores 对象
+    if isinstance(scores, dict):
+        try:
+            scores = PhotoScores(**scores)
+        except Exception as e:
+            logger.warning(f"Failed to parse scores for {photo_id}: {e}")
             scores = None
     
     return PhotoMetadata(

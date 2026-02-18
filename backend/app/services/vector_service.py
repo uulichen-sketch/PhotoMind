@@ -67,7 +67,7 @@ class VectorService:
             metadata_stored = {}
             for key, value in metadata.items():
                 if value is not None:
-                    if isinstance(value, list):
+                    if isinstance(value, (list, dict)):
                         metadata_stored[key] = json.dumps(value, ensure_ascii=False)
                     else:
                         metadata_stored[key] = str(value)
@@ -120,6 +120,8 @@ class VectorService:
                             # 尝试解析 JSON
                             if key == 'tags':
                                 parsed_metadata[key] = json.loads(value)
+                            elif key == 'scores':
+                                parsed_metadata[key] = json.loads(value)
                             else:
                                 parsed_metadata[key] = value
                         except:
@@ -160,6 +162,8 @@ class VectorService:
                 for key, value in metadata.items():
                     try:
                         if key == 'tags':
+                            parsed_metadata[key] = json.loads(value)
+                        elif key == 'scores':
                             parsed_metadata[key] = json.loads(value)
                         else:
                             parsed_metadata[key] = value

@@ -3,9 +3,18 @@ import os
 from typing import Optional, Dict, Any
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
-import exifread
 from datetime import datetime
 import logging
+
+# exifread 是可选依赖
+try:
+    import exifread
+    EXIFREAD_AVAILABLE = True
+except ImportError:
+    exifread = None
+    EXIFREAD_AVAILABLE = False
+    logging.getLogger(__name__).warning("exifread not installed. Install with: pip install exifread")
+
 from app.services.geocoding_service import geocoding_service
 
 logger = logging.getLogger(__name__)
@@ -113,20 +122,21 @@ class EXIFService:
                             result["gps_latitude"] = lat
                             result["gps_longitude"] = lon
             
-            # 使用 exifread 获取更多信息（如镜头）
-            try:
-                with open(filepath, 'rb') as f:
-                    tags = exifread.process_file(f, details=False)
-                    
-                    # 镜头信息
-                    lens_tags = ['LensModel', 'LensSpec', 'LensType']
-                    for tag in lens_tags:
-                        if tag in tags:
-                            result["lens"] = str(tags[tag])
-                            break
-                            
-            except Exception as e:
-                logger.debug(f"exifread failed for {filepath}: {e}")
+            # 使用 exifread 获取更多信息（如镜头）- 可选
+            if EXIFREAD_AVAILABLE:
+                try:
+                    with open(filepath, 'rb') as f:
+                        tags = exifread.process_file(f, details=False)
+                        
+                        # 镜头信息
+                        lens_tags = ['LensModel', 'LensSpec', 'LensType']
+                        for tag in lens_tags:
+                            if tag in tags:
+                                result["lens"] = str(tags[tag])
+                                break
+                                
+                except Exception as e:
+                    logger.debug(f"exifread failed for {filepath}: {e}")
                 
         except Exception as e:
             logger.error(f"Failed to extract EXIF from {filepath}: {e}")

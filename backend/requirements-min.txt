@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+chromadb
+Pillow
+exifread
+httpx
+python-dotenv
+python-dateutil
